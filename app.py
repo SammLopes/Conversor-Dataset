@@ -162,9 +162,12 @@ def merge_datasets(classe_desejada, classe_destino):
 
     print(f"✅ Fusão concluída! Classe {classe_desejada} do Dataset D adicionada ao Dataset P.")
 
+def convert_format():
+    print("🔄 Convertendo dataset para o formato YOLOv8...")
 if __name__ == "__main__":
 
-    
+    # Converter datase fora do formato YOLOv8 para o formato YOLOv8
+    convert_format();
     # check proporcao do dataset antes do merge 
     checkPropracaoDataset()
     print("\n")
