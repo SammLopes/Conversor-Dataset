@@ -162,8 +162,54 @@ def merge_datasets(classe_desejada, classe_destino):
 
     print(f"✅ Fusão concluída! Classe {classe_desejada} do Dataset D adicionada ao Dataset P.")
 
-def convert_format():
-    print("🔄 Convertendo dataset para o formato YOLOv8...")
+def gerar_labels_multiclasse(dataset_root, output_dir, classes_P, split="train"):
+    """
+    Converte dataset estruturado em subpastas (uma por classe) para YOLOv8 format.
+    Cada imagem recebe 1 bounding box cobrindo 100% da imagem.
+
+    dataset_root: raiz com subpastas por classe (ex: Normal/, Ischemic/, Hemorrhagic/)
+    output_dir: saída no formato YOLOv8 (train/images/, train/labels/)
+    classes_P: lista padrão de classes do projeto
+    split: "train", "val" ou "test"
+    """
+    # Mapeamento das classes
+    map_P = {name.lower(): idx for idx, name in enumerate(classes_P)}
+    
+    images_out = os.path.join(output_dir, split, "images")
+    labels_out = os.path.join(output_dir, split, "labels")
+    os.makedirs(images_out, exist_ok=True)
+    os.makedirs(labels_out, exist_ok=True)
+
+    for class_folder in os.listdir(dataset_root):
+        class_path = os.path.join(dataset_root, class_folder)
+        if not os.path.isdir(class_path):
+            continue
+        
+        class_name = class_folder.lower().strip()
+        if class_name not in map_P:
+            print(f"⚠️ Classe {class_folder} ignorada (não existe no padrão)")
+            continue
+        
+        class_id = map_P[class_name]
+        
+        for file in os.listdir(class_path):
+            if not (file.endswith(".jpg") or file.endswith(".png")):
+                continue
+            
+            src_path = os.path.join(class_path, file)
+            dst_img_path = os.path.join(images_out, file)
+            dst_lbl_path = os.path.join(labels_out, file.rsplit(".", 1)[0] + ".txt")
+            
+            # Copia imagem
+            shutil.copy(src_path, dst_img_path)
+            
+            # Gera label cobrindo toda a imagem
+            with open(dst_lbl_path, "w") as f:
+                f.write(f"{class_id} 0.5 0.5 1.0 1.0\n")
+        
+        print(f"✅ Classe {class_folder} convertida para YOLOv8 com ID {class_id}")
+
+    print(f"🎯 Conversão finalizada no split {split}!")
 if __name__ == "__main__":
 
     # Converter datase fora do formato YOLOv8 para o formato YOLOv8
