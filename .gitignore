@@ -2,5 +2,10 @@
 .venv/
 datasets/
 yolov8/
-yolov8 copy/
+yolov8-copy/
+yolov8-copy-1/
 runs/
+output_dataset_01/*
+output_dataset_02/*
+output_dataset_03/*
+output_dataset_04/*

@@ -2,7 +2,8 @@ import torch
 torch.cuda.empty_cache()
 torch.cuda.ipc_collect()
 import os
-from collections import Counter;
+import random
+from collections import Counter, defaultdict;
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 from ultralytics import YOLO
 import yaml
@@ -56,54 +57,142 @@ def validate_model(model, isOnlyPredict=False):
     #         augment=True
     #     )
 
-def check_proporcao_dataset(dataset_root):
+def balancear_dataset(dataset_root, output_root, extra_root, seed=42):
     """
-    Checa a proporção de classes em todo o dataset YOLOv8 (train, test, valid).
-    Assume que as labels estão em formato YOLO (labels/<split>/*.txt).
+    Balanceia dataset YOLOv8 para 20.000 imagens no total,
+    com proporções definidas no TCC:
+      - 40% Ischemic Stroke (AVCi)
+      - 30% Hemorrhagic Stroke (AVCh)
+      - 30% Normal
+    Divide em 80% treino e 20% validação.
+    O restante das imagens é movido para 'extra_root'.
     """
 
-    # Mapeamento das classes do projeto
-    classes_P = ['Normal', 'AVCh', 'AVCi']
-    total_counts = Counter()
-    split_counts = {}
+    random.seed(seed)
 
-    for split in ["train", "test", "valid"]:
-        labels_dir = os.path.join(dataset_root, "labels", split)
-        if not os.path.exists(labels_dir):
+    # Definições
+    classes_P = ["Hemorrhagic Stroke", "Ischemic Stroke", "Normal"]
+    target_total = 20000
+    target_counts = {
+        "Ischemic Stroke": int(target_total * 0.40),   # 8000
+        "Hemorrhagic Stroke": int(target_total * 0.30),# 6000
+        "Normal": int(target_total * 0.30),            # 6000
+    }
+
+    split_ratio = {"train": 0.8, "valid": 0.2}
+
+    # Pastas de entrada (tudo vem do split `train` do dataset original)
+    images_dir = os.path.join(dataset_root, "train", "images")
+    labels_dir = os.path.join(dataset_root, "train", "labels")
+
+    # Pastas de saída no formato YOLOv8
+    for split in ["train", "valid"]:
+        os.makedirs(os.path.join(output_root, split, "images"), exist_ok=True)
+        os.makedirs(os.path.join(output_root, split, "labels"), exist_ok=True)
+    os.makedirs(os.path.join(extra_root, "images"), exist_ok=True)
+    os.makedirs(os.path.join(extra_root, "labels"), exist_ok=True)
+
+    # Agrupa imagens por classe
+    class_to_files = defaultdict(list)
+    for label_file in os.listdir(labels_dir):
+        if not label_file.endswith(".txt"):
             continue
 
-        counts = Counter()
-        for file in os.listdir(labels_dir):
-            if not file.endswith(".txt"):
-                continue
+        path = os.path.join(labels_dir, label_file)
+        with open(path, "r") as f:
+            lines = f.readlines()
 
-            with open(os.path.join(labels_dir, file), "r") as f:
-                for line in f:
-                    parts = line.strip().split()
-                    if len(parts) > 0:
-                        class_id = int(parts[0])
-                        counts[class_id] += 1
-                        total_counts[class_id] += 1
+        if not lines:
+            continue
 
-        split_counts[split] = counts
+        # Assume que cada imagem tem apenas uma classe principal
+        class_id = int(lines[0].split()[0])
+        class_name = classes_P[class_id]
+        image_file = label_file.replace(".txt", ".jpg")  # pode ajustar extensão se necessário
 
-    # 📊 Exibe proporção por split
-    for split, counts in split_counts.items():
-        total = sum(counts.values())
-        print(f"\n📂 Split: {split} (Total {total})")
-        for i, cls in enumerate(classes_P):
-            qtd = counts[i]
+        if os.path.exists(os.path.join(images_dir, image_file)):
+            class_to_files[class_name].append((image_file, label_file))
+
+    # Balanceia cada classe
+    for class_name, target in target_counts.items():
+        files = class_to_files[class_name]
+        random.shuffle(files)
+
+        # Pega exatamente a quantidade desejada
+        selected = files[:target]
+        extra = files[target:]
+
+        # Divide entre treino e validação
+        n_train = int(target * split_ratio["train"])
+        n_valid = target - n_train
+
+        train_files = selected[:n_train]
+        valid_files = selected[n_train:n_train+n_valid]
+
+        # Copia para output
+        for img_file, lbl_file in train_files:
+            shutil.copy(os.path.join(images_dir, img_file), os.path.join(output_root, "train/images", img_file))
+            shutil.copy(os.path.join(labels_dir, lbl_file), os.path.join(output_root, "train/labels", lbl_file))
+
+        for img_file, lbl_file in valid_files:
+            shutil.copy(os.path.join(images_dir, img_file), os.path.join(output_root, "valid/images", img_file))
+            shutil.copy(os.path.join(labels_dir, lbl_file), os.path.join(output_root, "valid/labels", lbl_file))
+
+        # Copia extras
+        for img_file, lbl_file in extra:
+            shutil.copy(os.path.join(images_dir, img_file), os.path.join(extra_root, "images", img_file))
+            shutil.copy(os.path.join(labels_dir, lbl_file), os.path.join(extra_root, "labels", lbl_file))
+
+        print(f"✅ Classe {class_name}: {len(train_files)} treino, {len(valid_files)} validação, {len(extra)} extras.")
+
+    print("\n🎯 Dataset balanceado gerado em:", output_root)
+    print("📦 Extras salvos em:", extra_root)
+
+def check_split_proportion(labels_dir, classes):
+    counts = Counter()
+    total = 0
+    if not os.path.exists(labels_dir):
+        return counts, 0
+    for lbl_file in os.listdir(labels_dir):
+        if not lbl_file.endswith(".txt"):
+            continue
+        with open(os.path.join(labels_dir, lbl_file), "r") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) < 5:
+                    continue
+                cls_id = int(parts[0])
+                counts[cls_id] += 1
+                total += 1
+    return counts, total
+
+def check_proporcao_dataset(dataset_root, classes):
+    """
+    Mostra a proporção de classes no dataset inteiro (train + valid).
+    
+    dataset_root: raiz do dataset YOLOv8 (com train/ e valid/)
+    classes: lista com nomes das classes
+    """
+    totals = Counter()
+    total_all = 0
+
+    for split in ["train", "valid"]:
+        counts, total = check_split_proportion(os.path.join(dataset_root, split, "labels"), classes)
+        total_all += total
+        for k,v in counts.items():
+            totals[k] += v
+
+        print(f"\n📂 Diretório {split} (Total {total})")
+        for idx, name in enumerate(classes):
+            qtd = counts[idx]
             prop = (qtd / total * 100) if total > 0 else 0
-            print(f"  Classe: {cls}, Quantidade: {qtd}, Proporção: {prop:.2f}%")
+            print(f"  Classe: {name}, Quantidade: {qtd}, Proporção: {prop:.2f}%")
 
-    # 📊 Exibe proporção geral
-    total_all = sum(total_counts.values())
     print(f"\n📊 Dataset completo (Total {total_all})")
-    for i, cls in enumerate(classes_P):
-        qtd = total_counts[i]
+    for idx, name in enumerate(classes):
+        qtd = totals[idx]
         prop = (qtd / total_all * 100) if total_all > 0 else 0
-        print(f"  Classe: {cls}, Quantidade: {qtd}, Proporção: {prop:.2f}%")
-
+        print(f"  Classe: {name}, Quantidade: {qtd}, Proporção: {prop:.2f}%")
 
 def merge_datasets(classe_desejada, classe_destino, dataset_P, dataset_D, split_D = 'train',split_P='train'):
     
@@ -260,12 +349,13 @@ def gerar_labels_multiclasse(dataset_root, output_dir, classes_P, split="train",
     print(f"🎯 Conversão finalizada no split {split}!\n")
 
 if __name__ == "__main__":
-    dataset_root = './yolov8-copy'
+    path_train_images = './yolov8-copy/train/images'
+    path_valid_images = './yolov8-copy/valid/images'
+
+    classes = ['Hemorrhagic Stroke', 'Ischemic Stroke', 'Normal']
     # Converter datase fora do formato YOLOv8 para o formato YOLOv8
     # ======================= Conversão de datasets formato direptorio para Yolo format ================================================== 
-    # classes_P = ['Hemorrhagic Stroke', 'Ischemic Stroke', 'Normal']
-    # gerar_labels_multiclasse('./datasets/dataset_test', 'output_dataset_test', classes_P, split='train');
-    
+
     #dataset 04
     classes_P_04 = ['Bleeding', 'Ischemia', 'Normal'];
     gerar_labels_multiclasse('./datasets/datasets_unformat/dataset_04/train', 'output_dataset_04', classes_P_04, split='train', gerar_yaml=True);
@@ -292,7 +382,7 @@ if __name__ == "__main__":
 
     print("\n")
     # check proporcao do dataset antes do merge 
-    check_proporcao_dataset(dataset_root)
+    check_proporcao_dataset("./yolov8-copy", classes)
     print("\n")
     # ======================= Conversão de datasets Yolo para o nosso formato Yolo ==================================================
 
@@ -365,5 +455,12 @@ if __name__ == "__main__":
 
     print("\n")
     # proporção do dataset depois do merge
-    check_proporcao_dataset(dataset_root)
-    #print("\n")
+    check_proporcao_dataset("./yolov8-copy", classes)
+    print("\n")
+    balancear_dataset(
+        dataset_root="./yolov8-copy",         # seu dataset atual
+        output_root="./yolov8-balanced",      # dataset balanceado final
+        extra_root="./yolov8-extra"           # imagens que sobraram
+    )
+    print('\n')
+    check_proporcao_dataset("./yolov8-copy", classes)
