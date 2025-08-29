@@ -57,7 +57,7 @@ def validate_model(model, isOnlyPredict=False):
     #         augment=True
     #     )
 
-def balancear_dataset(dataset_root, output_root, extra_root, seed=42):
+def balancear_dataset(dataset_root, output_root, extra_root, seed=42, gerar_yaml=True):
     """
     Balanceia dataset YOLOv8 para 20.000 imagens no total,
     com proporções definidas no TCC:
@@ -144,6 +144,19 @@ def balancear_dataset(dataset_root, output_root, extra_root, seed=42):
             shutil.copy(os.path.join(labels_dir, lbl_file), os.path.join(extra_root, "labels", lbl_file))
 
         print(f"✅ Classe {class_name}: {len(train_files)} treino, {len(valid_files)} validação, {len(extra)} extras.")
+
+    if gerar_yaml:
+        data_yaml = (
+            f"train: ./{os.path.join(output_root, 'train/images')}\n"
+            f"val: ./{os.path.join(output_root, 'val/images')}\n"  
+            f"nc: {len(classes_P)}\n"
+            f"names: {classes_P}"
+        )
+        
+        yaml_path = os.path.join(output_root, "data.yaml")
+        with open(yaml_path, "w") as f:
+            f.write(data_yaml)
+        print("📄 data.yaml gerado no formato array único!")
 
     print("\n🎯 Dataset balanceado gerado em:", output_root)
     print("📦 Extras salvos em:", extra_root)
@@ -348,6 +361,65 @@ def gerar_labels_multiclasse(dataset_root, output_dir, classes_P, split="train",
 
     print(f"🎯 Conversão finalizada no split {split}!\n")
 
+def yolo_to_custom(yolo_root, output_root, classes):
+    """
+    Converte dataset no formato YOLOv8 para formato customizado por diretórios.
+    
+    Estrutura de saída:
+    output_root/
+      ├── train/
+      │   ├── Hemorrhagic Stroke/
+      │   ├── Ischemic Stroke/
+      │   └── Normal/
+      └── valid/
+          ├── Hemorrhagic Stroke/
+          ├── Ischemic Stroke/
+          └── Normal/
+    
+    Args:
+        yolo_root (str): diretório do dataset YOLOv8 (ex: "./yolov8-balanced")
+        output_root (str): diretório de saída do dataset customizado
+        classes (list): lista de classes, na ordem do YOLO
+    """
+    for split in ["train", "valid"]:
+        images_dir = os.path.join(yolo_root, "images", split)
+        labels_dir = os.path.join(yolo_root, "labels", split)
+
+        # Cria as pastas de saída
+        for cls in classes:
+            os.makedirs(os.path.join(output_root, split, cls), exist_ok=True)
+
+        # Para cada imagem, descobre sua classe principal
+        for label_file in os.listdir(labels_dir):
+            if not label_file.endswith(".txt"):
+                continue
+
+            label_path = os.path.join(labels_dir, label_file)
+            with open(label_path, "r") as f:
+                lines = f.readlines()
+
+            if not lines:
+                continue
+
+            # Assume que a imagem tem uma classe principal (a do primeiro bounding box)
+            class_id = int(lines[0].split()[0])
+            class_name = classes[class_id]
+
+            # Nome da imagem correspondente
+            base_name = os.path.splitext(label_file)[0]
+            img_file = None
+            for ext in [".jpg", ".png", ".jpeg"]:
+                candidate = os.path.join(images_dir, base_name + ext)
+                if os.path.exists(candidate):
+                    img_file = candidate
+                    break
+
+            if img_file:
+                dst_path = os.path.join(output_root, split, class_name, os.path.basename(img_file))
+                shutil.copy(img_file, dst_path)
+
+        print(f"✅ Split '{split}' convertido para formato customizado em {output_root}/{split}")
+
 if __name__ == "__main__":
     path_train_images = './yolov8-copy/train/images'
     path_valid_images = './yolov8-copy/valid/images'
@@ -463,4 +535,11 @@ if __name__ == "__main__":
         extra_root="./yolov8-extra"           # imagens que sobraram
     )
     print('\n')
-    check_proporcao_dataset("./yolov8-copy", classes)
+    check_proporcao_dataset("./yolov8-balanced", classes)
+    classes = ["Hemorrhagic Stroke", "Ischemic Stroke", "Normal"]
+
+    yolo_to_custom(
+        yolo_root="./yolov8-balanced",
+        output_root="./dataset_custom",
+        classes=classes
+    )
