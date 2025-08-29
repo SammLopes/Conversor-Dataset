@@ -9,3 +9,6 @@ output_dataset_01/*
 output_dataset_02/*
 output_dataset_03/*
 output_dataset_04/*
+
+yolov8-balanced/
+yolov8-extra/
