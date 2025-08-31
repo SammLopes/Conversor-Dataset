@@ -147,8 +147,8 @@ def balancear_dataset(dataset_root, output_root, extra_root, seed=42, gerar_yaml
 
     if gerar_yaml:
         data_yaml = (
-            f"train: ./{os.path.join(output_root, 'train/images')}\n"
-            f"val: ./{os.path.join(output_root, 'val/images')}\n"  
+            f"train: {os.path.join(output_root, 'train/images')}\n"
+            f"val: {os.path.join(output_root, 'val/images')}\n"  
             f"nc: {len(classes_P)}\n"
             f"names: {classes_P}"
         )
@@ -382,8 +382,8 @@ def yolo_to_custom(yolo_root, output_root, classes):
         classes (list): lista de classes, na ordem do YOLO
     """
     for split in ["train", "valid"]:
-        images_dir = os.path.join(yolo_root, "images", split)
-        labels_dir = os.path.join(yolo_root, "labels", split)
+        images_dir = os.path.join(yolo_root, split, "images")
+        labels_dir = os.path.join(yolo_root, split, "labels")
 
         # Cria as pastas de saída
         for cls in classes:
