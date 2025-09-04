@@ -2,8 +2,12 @@ from core.conversao import gerar_labels_multiclasse
 from core.fusao import merge_datasets
 from core.balanceamento import balancear_dataset, check_proporcao_dataset
 from core.conversao import yolo_to_custom
+from core.treino import smart_fit, validate_model
+from utils.paths import RAW_UNFORMATTED, YOLO_COPY, YOLO_BALANCED, YOLO_EXTRA, CUSTOM_DATASET, CLASSES_PADRAO, OUTPUT_DATASETS, YOLO_YAML_DATASETS
 
 def main(): 
+
+    train_path = "./yolov8-copy/train/images"
     path_train_images = './yolov8-copy/train/images'
     path_valid_images = './yolov8-copy/valid/images'
 
@@ -126,6 +130,11 @@ def main():
         output_root="./dataset_custom",
         classes=classes
     )
+
+    # ======================= Treinamento e Validação ============================
+    # smart_fit()
+    # validate_model("./runs/detect/peso_volov8m_50ep/weights/best.pt", isOnlyPredict=False)
+
 
 if __name__ == "__main__": 
     main()
