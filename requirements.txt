@@ -1,1 +1,15 @@
+# requirements.txt
+
+ultralytics==8.0.198
+torch>=1.13.0
+pyyaml
+opencv-python
+
+# Utilitários
+scikit-learn
+pandas
+matplotlib
+
+# (opcional) para uso em GPU
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 ultralytics
