@@ -4,6 +4,7 @@ from core.balanceamento import balancear_dataset, check_proporcao_dataset
 from core.conversao import yolo_to_custom
 from core.treino import smart_fit, validate_model
 from utils.paths import RAW_UNFORMATTED, YOLO_COPY, YOLO_BALANCED, YOLO_EXTRA, CUSTOM_DATASET, CLASSES_PADRAO, OUTPUT_DATASETS, YOLO_YAML_DATASETS
+from core.preprocessamento import preprocess_dataset
 
 def main(): 
 
@@ -131,10 +132,14 @@ def main():
         classes=classes
     )
 
+    # ======================= Pré-processamento ============================
+    preprocess_dataset(
+        input_root="./dataset_custom",
+        output_root="./dataset_custom_preprocessed"
+    )
     # ======================= Treinamento e Validação ============================
     # smart_fit()
     # validate_model("./runs/detect/peso_volov8m_50ep/weights/best.pt", isOnlyPredict=False)
-
 
 if __name__ == "__main__": 
     main()
