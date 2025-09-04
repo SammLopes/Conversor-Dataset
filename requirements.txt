@@ -1,6 +1,4 @@
-# requirements.txt
-
-ultralytics==8.0.198
+numpy
 torch>=1.13.0
 pyyaml
 opencv-python
