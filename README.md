@@ -1,6 +1,6 @@
-# Pipeline de Processamento e Treinamento YOLOv8
+# Meu Plano - Pipeline de Processamento e Treinamento YOLOv8
 
-Este projeto organiza o processo completo de preparação, fusão, balanceamento e conversão de datasets médicos para treinamento com o modelo YOLOv8, dentro da arquitetura do sistema Meu Plano.
+Este projeto organiza o processo completo de preparação, fusão, balanceamento, conversão e pré-processamento de datasets médicos para uso com o modelo YOLOv8 e outras arquiteturas de redes neurais, dentro da arquitetura do sistema Meu Plano.
 
 ---
 
@@ -8,20 +8,20 @@ Este projeto organiza o processo completo de preparação, fusão, balanceamento
 
 ```
 app/
-├── core/               # Módulos funcionais (balanceamento, fusão, conversão, treino)
+├── core/               # Módulos funcionais (balanceamento, fusão, conversão, treino, pré-processamento)
 ├── utils/              # Constantes e paths reutilizáveis
 ├── main.py             # Pipeline principal com chamadas diretas
 
 datasets/
-├── datasets_unformat/ # Dados brutos não formatados (por classe)
-├── dataset_yolo/      # Dados já no formato YOLO + YAML
+├── datasets_unformat/  # Dados brutos não formatados (por classe)
+├── dataset_yolo/       # Dados já no formato YOLO + YAML
 
-output_dataset_*/       # Saídas intermediárias convertidas para YOLO
-
-yolov8-copy/            # Pasta de fusão principal (dataset acumulado)
-yolov8-balanced/        # Dataset final balanceado
-yolov8-extra/           # Imagens excedentes após balanceamento
-dataset_custom/         # Dataset final convertido para o formato customizado
+output_dataset_*/        # Saídas intermediárias convertidas para YOLO
+yolov8-copy/             # Pasta de fusão principal (dataset acumulado)
+yolov8-balanced/         # Dataset final balanceado
+yolov8-extra/            # Imagens excedentes após balanceamento
+dataset_custom/          # Dataset final convertido para o formato customizado
+dataset_custom_preprocessed/  # Dataset custom com imagens pré-processadas
 ```
 
 ---
@@ -48,6 +48,7 @@ python app/main.py
 > 2. Fusão de datasets
 > 3. Balanceamento por classe
 > 4. Conversão final para formato customizado
+> 5. Pré-processamento das imagens (para uso em CNNs ou análise supervisionada)
 
 ---
 
@@ -57,6 +58,7 @@ python app/main.py
 - `core/fusao.py` → Junta imagens de diferentes fontes sob um padrão de classes
 - `core/balanceamento.py` → Garante proporções fixas entre as classes
 - `core/treino.py` → Treina e valida modelos YOLOv8 (Ultralytics)
+- `core/preprocessamento.py` → Aplica janelamento, equalização, filtragem e normalização para uso em classificadores
 
 ---
 
@@ -65,20 +67,20 @@ python app/main.py
 - Python 3.9+
 - [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics)
 - Torch / CUDA (para treinamento)
-- PyYAML, shutil, etc.
+- OpenCV, PyYAML, scikit-image, scikit-learn
 
 ---
 
 ## 📌 Observações
 
 - Nenhum dataset original é versionado por Git.
-- Diretórios `output_*/`, `yolov8-copy/` e `balanced/` devem ser gerados dinamicamente.
+- Diretórios `output_*/`, `yolov8-copy/`, `balanced/` e `preprocessed/` devem ser gerados dinamicamente.
 - Todos os caminhos podem ser ajustados via `utils/paths.py`
 
 ---
 
 ## 👨‍💻 Autor
 
-Jhonny — Especialista em Tecnologia da Informação na Meu Patrimônio
+Samuel Paviotti
 
 > Foco em simplicidade, clareza e segurança de execução.
