@@ -1,5 +1,9 @@
 .idea/  
 .venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
 yolov8/
 yolov8-copy-1/
 runs/
