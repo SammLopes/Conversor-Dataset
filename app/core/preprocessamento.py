@@ -3,7 +3,8 @@
 import os
 import cv2
 import numpy as np
-from skimage import exposure, morphology
+from skimage.exposure import equalize_hist
+from skimage.morphology import remove_small_objects
 
 def window_image(img, window_center=40, window_width=80):
     img_min = window_center - window_width // 2
@@ -21,7 +22,7 @@ def preprocess_image(img_path, output_size=(224, 224)):
     img = cv2.medianBlur(img, 3)
 
     _, mask = cv2.threshold(img, 15, 255, cv2.THRESH_BINARY)
-    mask = morphology.remove_small_objects(mask.astype(bool), min_size=500)
+    mask = remove_small_objects(mask.astype(bool), min_size=500)
     img = img * mask.astype(np.uint8)
 
     img = cv2.resize(img, output_size)

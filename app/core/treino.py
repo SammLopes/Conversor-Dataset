@@ -6,14 +6,14 @@ import torch
 from ultralytics import YOLO
 
 def smart_fit():
-    model = YOLO("yolov8s.pt")
+    model = YOLO("yolov8m.pt")
     model.info()
     model.train(
         name="peso_volov8m_50ep",
         data='yolov8/data.yaml',
-        epochs=300,
-        imgsz=640,
-        batch=4,
+        epochs=100,
+        imgsz=224,
+        batch=32,
         patience=50,
         plots=True,
         cos_lr=True,
