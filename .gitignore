@@ -4,6 +4,9 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
+dataset_custom/
+yolov8-balanced-1/
+
 yolov8/
 yolov8-copy-1/
 runs/
