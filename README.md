@@ -1,4 +1,4 @@
-# Meu Plano - Pipeline de Processamento e Treinamento YOLOv8
+# Pipeline de Processamento e Treinamento YOLOv8, TransUnet, SDAVC.
 
 Este projeto organiza o processo completo de preparação, fusão, balanceamento, conversão e pré-processamento de datasets médicos para uso com o modelo YOLOv8 e outras arquiteturas de redes neurais, dentro da arquitetura do sistema Meu Plano.
 
