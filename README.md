@@ -71,11 +71,39 @@ python app/main.py
 
 ---
 
-## 📌 Observações
+## 🧪 Comparativo de Parâmetros de Treinamento
 
-- Nenhum dataset original é versionado por Git.
-- Diretórios `output_*/`, `yolov8-copy/`, `balanced/` e `preprocessed/` devem ser gerados dinamicamente.
-- Todos os caminhos podem ser ajustados via `utils/paths.py`
+| Parâmetro / Recurso                    | SDAC-AVC Adaptado ✅ | TransUNet ✅ | YOLOv8 ⚠️ |
+|----------------------------------------|----------------------|--------------|-----------|
+| Modificação da arquitetura             | ✅ Total              | ✅ Total     | ❌ Limitada |
+| Otimizador Adam com LR custom          | ✅ Sim                | ✅ Sim       | ✅ Sim (`lr0`) |
+| Scheduler (ReduceLROnPlateau)          | ✅ Sim                | ✅ Sim       | ⚠️ Limitado (`lrf`) |
+| Early stopping                         | ✅ Sim                | ✅ Sim       | ✅ Sim (`patience`) |
+| Batch size ajustável (16–32)           | ✅ Sim                | ✅ Sim       | ✅ Sim |
+| Função de perda customizada            | ✅ Qualquer           | ✅ Qualquer  | ❌ Fixa para detecção |
+| Dropout customizado                    | ✅ Sim                | ✅ Sim       | ❌ Não aplicável diretamente |
+| Data augmentation                      | ✅ Sim (`ImageDataGenerator`) | ✅ Sim  | ✅ Sim (embutido) |
+| K-Fold Cross-validation                | ✅ Sim (`StratifiedKFold`) | ✅ Sim  | ❌ Manual |
+| Callbacks personalizados (Keras)       | ✅ Total              | ✅ Total     | ⚠️ Limitado |
+| Transfer learning custom               | ✅ Sim                | ✅ Sim       | ⚠️ Apenas via backbones |
+
+---
+
+## 📊 Comparativo de Métricas Suportadas
+
+> ❗ Nota: YOLOv8 gera a **F1-Confidence Curve**, que mostra o F1 em diferentes thresholds de confiança, **mas não é o F1-score tradicional** (média harmônica entre precisão e recall fixos). Para cálculo exato do F1-score, é necessário processamento adicional com `sklearn`.
+
+| Métrica               | SDAC-AVC Adaptado ✅ | TransUNet ✅ | YOLOv8 ⚠️ |
+|------------------------|----------------------|--------------|-----------|
+| Acurácia               | ✅ Sim                | ✅ Sim       | ✅ Sim |
+| Precisão               | ✅ Sim                | ✅ Sim       | ✅ Sim |
+| Sensibilidade (Recall) | ✅ Sim                | ✅ Sim       | ✅ Sim |
+| Especificidade         | ✅ Sim                | ✅ Sim       | ⚠️ Manual |
+| F1-score tradicional   | ✅ Sim                | ✅ Sim       | ⚠️ Requer extração manual |
+| AUC-ROC                | ✅ Sim                | ✅ Sim       | ⚠️ Requer workaround |
+| Tempo de predição      | ✅ Sim (`time`)       | ✅ Sim       | ✅ Nativo |
+| Throughput (img/s)     | ✅ Sim                | ✅ Sim       | ✅ Sim |
+| Uso de memória         | ✅ Sim (`psutil`)     | ✅ Sim       | ⚠️ Estimado |
 
 ---
 
