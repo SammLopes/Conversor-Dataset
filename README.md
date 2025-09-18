@@ -68,6 +68,7 @@ python app/main.py
 - [Ultralytics YOLOv8](https://github.com/ultralytics/ultralytics)
 - Torch / CUDA (para treinamento)
 - OpenCV, PyYAML, scikit-image, scikit-learn
+- Requirements do projeto [TransUnet](https://github.com/Beckschen/TransUNet)
 
 ---
 
