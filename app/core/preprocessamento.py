@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 from skimage.exposure import equalize_hist
 from skimage.morphology import remove_small_objects
+from tqdm import tqdm
 
 def window_image(img, window_center=40, window_width=80):
     img_min = window_center - window_width // 2
