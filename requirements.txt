@@ -1,9 +1,10 @@
 numpy
-skimage
+scikit-image
 pytest
 torch>=1.13.0
 pyyaml
 opencv-python
+tqdm
 
 # Utilitários
 scikit-learn
