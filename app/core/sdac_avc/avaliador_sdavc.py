@@ -2,8 +2,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay, roc_auc_score, roc_curve
-from tensorflow.keras.models import load_model
-from tensorflow.keras.utils import to_categorical
+from keras.models import load_model
+from keras.utils import to_categorical
 
 def avaliar_sdavc_model(X, y, model_dir="modelos/sdavc"):
     y_cat = to_categorical(y)

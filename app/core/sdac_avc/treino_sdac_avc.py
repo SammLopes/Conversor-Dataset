@@ -2,8 +2,8 @@ import os
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from core.sdac_avc.modelo_sdac import build_sdavc_model
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from tensorflow.keras.utils import to_categorical
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from keras.utils import to_categorical
 from tqdm.keras import TqdmCallback
 
 def train_sdavc_kfold(X, y, save_dir="modelos/sdavc", n_splits=5):
@@ -21,8 +21,8 @@ def train_sdavc_kfold(X, y, save_dir="modelos/sdavc", n_splits=5):
         model = build_sdavc_model(input_shape=X.shape[1:], num_classes=y_cat.shape[1])
 
         callbacks = [
-            EarlyStopping(patience=10, monitor='val_loss', restore_best_weights=True),
-            ReduceLROnPlateau(patience=5, factor=0.3, verbose=1)
+            EarlyStopping(patience=50, monitor='val_loss', restore_best_weights=True),
+            ReduceLROnPlateau(patience=25, factor=0.3, verbose=1)
         ]
 
         history = model.fit(

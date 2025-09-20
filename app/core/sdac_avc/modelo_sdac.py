@@ -1,6 +1,6 @@
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization, Input
-from tensorflow.keras.optimizers import Adam
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization, Input
+from keras.optimizers import Adam
 
 def build_sdavc_model(input_shape=(224, 224, 1), num_classes=3, dropout_rate=0.3, lr=0.0005):
     model = Sequential()
