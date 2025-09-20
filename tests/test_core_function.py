@@ -2,10 +2,10 @@
 
 import os
 import shutil
-import pytest
+# import pytest
 import numpy as np
 import cv2
-from core import balanceamento, conversao, fusao, treino, preprocessamento
+from app.core import balanceamento, conversao, fusao, treino, preprocessamento
 
 def test_window_image():
     img = np.linspace(0, 255, 256).astype(np.uint8)
@@ -81,3 +81,38 @@ def test_balancear_dataset(tmp_path):
 
     balanced_imgs = list((output_root / "train/images").glob("*.jpg"))
     assert len(balanced_imgs) > 0
+
+def test_sdavc_model_runs():
+    from app.core.sdac_avc.modelo_sdac import build_sdavc_model
+
+    model = build_sdavc_model(input_shape=(224, 224, 1), num_classes=3)
+    assert model is not None
+    assert len(model.layers) > 0
+    assert model.output_shape[-1] == 3 
+
+def test_train_sdavc_kfold(tmp_path):
+    from app.core.sdac_avc.treino_sdac_avc import train_sdavc_kfold
+    
+    X = np.random.rand(20, 224, 224, 1);
+    y = np.array([0,1,2,0,1] * 4)
+
+    train_sdavc_kfold(X, y, save_dir=str(tmp_path), n_splits=2)
+
+    files = list(tmp_path.glob("*.h5"))
+    assert( len(files) ) == 2
+
+def teste_avaliador_sdavc_model( tmp_path ):
+    from app.core.sdac_avc.avaliador_sdavc import avaliar_sdavc_model
+    from app.core.sdac_avc.modelo_sdac  import build_sdavc_model
+
+    os.makedirs( tmp_path, True)
+
+    model = build_sdavc_model()
+    model.save( str( tmp_path / "fold1.h5" ) )
+
+    X = np.random.rand(5, 224, 224, 1)
+    y = np.array( [0, 1, 2, 1,0] )
+
+    avaliar_sdavc_model(X, y, model_dir=str( tmp_path ))
+
+    assert os.path.exists("avaliacoes/sdavc_matrix_confusao.png")
