@@ -70,6 +70,30 @@ python app/main.py
 - OpenCV, PyYAML, scikit-image, scikit-learn
 
 ---
+---
+
+## 📌 Observações
+
+
+- Nenhum dataset original é versionado por Git.
+- Diretórios `output_*/`, `yolov8-copy/`, `balanced/`, `preprocessed/` e `modelos/` são gerados dinamicamente.
+- Todos os caminhos podem ser ajustados via `utils/paths.py`
+
+
+---
+
+
+## 🧠 Sobre o SDAVC Adaptado
+
+
+O modelo SDAVC-AVC é uma adaptação expandida da proposta de Reis (2021), originalmente binária (AVCi vs AVCh), agora estendida para multiclasse (incluindo Normal). A arquitetura implementada mantém os blocos convolucionais originais com filtros `[32, 64, 128, 256]`, ativação ReLU, pooling, batch normalization e regularização por dropout.
+
+
+Ele é treinado com validação cruzada estratificada (5 folds), utilizando `Adam`, `categorical_crossentropy`, e avaliado com métricas clínicas como sensibilidade, precisão, F1-score e AUC-ROC.
+
+
+---
+
 
 ## 🧪 Comparativo de Parâmetros de Treinamento
 
