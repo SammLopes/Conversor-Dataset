@@ -2,7 +2,7 @@ from core.conversao import gerar_labels_multiclasse
 from core.fusao import merge_datasets
 from core.balanceamento import balancear_dataset, check_proporcao_dataset
 from core.conversao import yolo_to_custom
-from core.treino import smart_fit, validate_model
+from app.core.treino_yolo import smart_fit, validate_model
 from utils.paths import (
     RAW_UNFORMATTED,
     YOLO_COPY,
@@ -15,6 +15,9 @@ from utils.paths import (
 )
 
 from core.preprocessamento import preprocess_dataset
+from core.sdac_avc.treino_sdac_avc import train_sdavc_kfold
+from core.sdac_avc.avaliador_sdavc import avaliar_sdavc_model
+from core.preprocessamento import carregar_dataset_preprocessado
 
 def main(): 
 
@@ -147,6 +150,14 @@ def main():
     # ======================= Treinamento e Validação ============================
     # smart_fit()
     # validate_model("./runs/detect/peso_volov8m_50ep/weights/best.pt", isOnlyPredict=False)
+
+    X, y = carregar_dataset_preprocessado('data/pre-processed/dataset_custom_preprocessed');    
+
+    # Treina o modelo SDAVC com validação cruzada
+    train_sdavc_kfold(X, y)
+
+    # Avalia o modelo SDAVC
+    avaliar_sdavc_model(X, y)
 
 if __name__ == "__main__": 
     main()
