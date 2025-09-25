@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
-from core.sdac_avc.modelo_sdac import build_sdavc_model
+from app.core.sdac_avc.modelo_sdac import build_sdavc_model
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from keras.utils import to_categorical
 from tqdm.keras import TqdmCallback
