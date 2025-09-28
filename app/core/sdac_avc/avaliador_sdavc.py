@@ -8,7 +8,7 @@ from sklearn.metrics import classification_report, confusion_matrix, ConfusionMa
 from keras.models import load_model
 from keras.utils import to_categorical
 
-def avaliar_sdavc_model(X, y, model_dir="modelos/sdavc", output_dir='avaliacoes'):
+def avaliar_sdavc_model(X, y, model_dir="modelos/sdavc", output_dir='avaliacoes', is_compile=True):
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -20,10 +20,10 @@ def avaliar_sdavc_model(X, y, model_dir="modelos/sdavc", output_dir='avaliacoes'
     process = psutil.Process(os.getpid()) 
 
     for fold_file in sorted(os.listdir(model_dir)):
-        if not fold_file.endswith(".h5"):
+        if not fold_file.endswith(".keras"):
             continue
 
-        model = load_model(os.path.join(model_dir, fold_file))
+        model = load_model(os.path.join(model_dir, fold_file), compile=is_compile)
         mem_before = process.memory_info().rss / (1024 * 1024)  
         
         start = time.time()
@@ -45,8 +45,8 @@ def avaliar_sdavc_model(X, y, model_dir="modelos/sdavc", output_dir='avaliacoes'
         probs.extend(y_pred)
 
     print("\n📊 Relatório de Classificação (média de todos os folds)")
-    report = classification_report(reais, predicoes, output_dict=True)
-    print(classification_report(reais, predicoes))
+    report = classification_report(reais, predicoes, output_dict=True,  zero_division=0)
+    print(classification_report(reais, predicoes, zero_division=0))
 
     recall_macro =report['macro avg']['recall']
     print(f"🌟 Sensibilidade (Recall - macro): {recall_macro:.4f}")

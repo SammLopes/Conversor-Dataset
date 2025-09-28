@@ -6,7 +6,7 @@ from keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from keras.utils import to_categorical
 from tqdm.keras import TqdmCallback
 
-def train_sdavc_kfold(X, y, save_dir="modelos/sdavc", n_splits=5, epochs=100, batch_size=32):
+def train_sdavc_kfold(X, y, save_dir="modelos/sdavc", n_splits=5, epochs=100, batch_size=32, is_include=True):
     os.makedirs(save_dir, exist_ok=True)
     kfold = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
 
@@ -35,7 +35,7 @@ def train_sdavc_kfold(X, y, save_dir="modelos/sdavc", n_splits=5, epochs=100, ba
             verbose=1
         )
 
-        model.save(os.path.join(save_dir, f"sdavc_fold{fold}.h5"))
+        model.save(os.path.join(save_dir, f"sdavc_fold{fold}.keras"), include_optimizer=is_include)
         fold += 1
     
     print(" Fim do treino em K-fold ")
