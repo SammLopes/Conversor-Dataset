@@ -7,11 +7,13 @@ import pytest
 import numpy as np
 import cv2
 import tensorflow as tf
+import pandas as pd
+import tempfile
+import gc
 from app.core import balanceamento, conversao, fusao, preprocessamento
 from app.core.sdac_avc.avaliador_sdavc import avaliar_sdavc_model
 from app.core.sdac_avc.modelo_sdac  import build_sdavc_model
 from app.core.sdac_avc.treino_sdac_avc import train_sdavc_kfold
-import tempfile
 
 @pytest.fixture(autouse=True)
 def cleanup():
@@ -97,37 +99,44 @@ def test_sdavc_model_runs():
     assert len(model.layers) > 0
     assert model.output_shape[-1] == 3 
 
-def test_train_sdavc_kfold(tmp_path, monkeypatch):
+def test_train_sdavc_kfold( tmp_path ):
    
     X = np.random.rand(4, 32, 32, 1)  
     y = np.array([0, 1] * 2)
 
-    train_sdavc_kfold(X, y, save_dir=str(tmp_path), n_splits=2, epochs=2, batch_size=8)
+    train_sdavc_kfold(X, y, save_dir=str(tmp_path), n_splits=2, epochs=2, batch_size=8, is_include=False)
 
-    files = list(tmp_path.glob("*.h5"))
+    files = list(tmp_path.glob("*.keras"))
     assert len(files) == 2
 
-def teste_avaliador_sdavc_model( tmp_path ):
+def test_avaliador_sdavc_model( tmp_path ):
 
     os.makedirs( 'avaliacoes', exist_ok=True )
     os.makedirs( tmp_path, exist_ok=True )   
 
-    model = build_sdavc_model()
+    model = build_sdavc_model( input_shape=(32, 32, 1) ) 
+    model.save( str( tmp_path / "fold1.keras" ) )
 
-    model.save( str( tmp_path / "fold1.h5" ) )
-
-    X = np.random.rand(5, 224, 224, 1)
+    X = np.random.rand(5, 32, 32, 1)
     y = np.array( [0, 1, 2, 1,0] )
 
-    avaliar_sdavc_model(X, y, model_dir=str( tmp_path ), output_dir=str( tmp_path ))
+    avaliar_sdavc_model(X, y, model_dir=str( tmp_path ), output_dir=str( tmp_path ), is_compile=False)
 
     assert os.path.exists( tmp_path / "sdavc_matriz_confusao.png")
+    assert os.path.exists( tmp_path / "resultados_sdavc.txt")
+    assert os.path.exists( tmp_path / "resultados_sdavc.csv")
+
+    df = pd.read_csv( tmp_path / "resultados_sdavc.csv")
+    for i in range(3):
+        assert f"especificidade_classe_{i}" in df.columns
+
+    gc.collect()
 
 def test_tqdm_is_show(tmp_path, capsys):
     X = np.random.rand(4, 32, 32, 1)
     y = np.array([0, 1] * 2)
 
-    train_sdavc_kfold(X, y, save_dir=str(tmp_path), n_splits=2, epochs=2, batch_size=6)
+    train_sdavc_kfold(X, y, save_dir=str(tmp_path), n_splits=2, epochs=2, batch_size=6, is_include=False)
 
     out, err = capsys.readouterr()
     print(out)
