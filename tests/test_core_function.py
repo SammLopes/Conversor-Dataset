@@ -1,7 +1,7 @@
 # tests/test_core_functions.py
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import shutil
 import pytest
 import numpy as np
@@ -67,7 +67,7 @@ def test_merge_datasets_empty(tmp_path):
     with open(dataset_D / "data.yaml", "w") as f:
         f.write("names: ['Test']")
 
-    fusao.merge_datasets("Test", "Test", str(dataset_P), str(dataset_D), "train", "train")
+    fusao.merge_datasets("Test", "Normal", str(dataset_P), str(dataset_D), "train", "train")
     assert True  # Se não crashar, passou
 
 def test_balancear_dataset(tmp_path):
@@ -99,27 +99,18 @@ def test_sdavc_model_runs():
 
 def test_train_sdavc_kfold(tmp_path, monkeypatch):
    
-    X = np.random.rand(8, 32, 32, 1)   # muito menor que 224x224
-    y = np.array([0, 1] * 4)
+    X = np.random.rand(4, 32, 32, 1)  
+    y = np.array([0, 1] * 2)
 
-    # 🔹 monkeypatch para reduzir epochs e batch_size
-    def fast_fit(self, *args, **kwargs):
-        kwargs["epochs"] = 1
-        kwargs["batch_size"] = 2
-        return tf.keras.callbacks.History()  # retorna objeto vazio
+    train_sdavc_kfold(X, y, save_dir=str(tmp_path), n_splits=2, epochs=2, batch_size=8)
 
-    monkeypatch.setattr("tensorflow.keras.Model.fit", fast_fit)
-
-    # executa treino mockado
-    train_sdavc_kfold(X, y, save_dir=str(tmp_path), n_splits=2)
-
-    # 🔹 checa se os arquivos de modelo foram criados
     files = list(tmp_path.glob("*.h5"))
     assert len(files) == 2
 
 def teste_avaliador_sdavc_model( tmp_path ):
 
-    os.makedirs( tmp_path, exist_ok=True)
+    os.makedirs( 'avaliacoes', exist_ok=True )
+    os.makedirs( tmp_path, exist_ok=True )   
 
     model = build_sdavc_model()
 
@@ -128,6 +119,16 @@ def teste_avaliador_sdavc_model( tmp_path ):
     X = np.random.rand(5, 224, 224, 1)
     y = np.array( [0, 1, 2, 1,0] )
 
-    avaliar_sdavc_model(X, y, model_dir=str( tmp_path ))
+    avaliar_sdavc_model(X, y, model_dir=str( tmp_path ), output_dir=str( tmp_path ))
 
-    assert os.path.exists("avaliacoes/sdavc_matrix_confusao.png")
+    assert os.path.exists( tmp_path / "sdavc_matriz_confusao.png")
+
+def test_tqdm_is_show(tmp_path, capsys):
+    X = np.random.rand(4, 32, 32, 1)
+    y = np.array([0, 1] * 2)
+
+    train_sdavc_kfold(X, y, save_dir=str(tmp_path), n_splits=2, epochs=2, batch_size=6)
+
+    out, err = capsys.readouterr()
+    print(out)
+    assert "accuracy:" in out or "loss:" in out or "step" in out or "━" in out
