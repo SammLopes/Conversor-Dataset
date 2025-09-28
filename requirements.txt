@@ -11,6 +11,9 @@ scikit-learn
 pandas
 matplotlib
 
+tensorflow==2.20.0
+keras==3.11.3
+
 # (opcional) para uso em GPU
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 ultralytics
