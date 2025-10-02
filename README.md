@@ -95,6 +95,18 @@ Ele é treinado com validação cruzada estratificada (5 folds), utilizando `Ada
 
 ---
 
+## Sobre a adaptação do TransUNet no treino do modelo
+
+O **TransUNet** é um modelo voltado para tarefas de **segmentação de imagens médicas**, e portanto requer que o dataset contenha **máscaras de segmentação** (labels pixel a pixel).  
+
+Como o dataset utilizado neste projeto não possui anotações manuais (máscaras), adotamos a seguinte estratégia:  
+
+1. **Pré-treinamento:** primeiro treinamos o TransUNet em datasets públicos já segmentados (ex.: **BTCV** ou **ACDC**) para que o modelo aprenda padrões gerais de segmentação em imagens médicas.  
+2. **Geração de pseudo-máscaras:** com o modelo pré-treinado, aplicamos inferência sobre as imagens do nosso dataset, gerando **pseudo-rótulos** (máscaras automáticas).  
+3. **Fine-tuning:** em seguida, refinamos o modelo utilizando as imagens do nosso dataset junto das pseudo-máscaras, aplicando **data augmentation** para aumentar a robustez e generalização.  
+
+Esse processo possibilita adaptar o TransUNet para domínios específicos (como tomografia computadorizada do cérebro) mesmo sem a necessidade inicial de anotações manuais feitas por especialistas.  
+
 
 ## 🧪 Comparativo de Parâmetros de Treinamento
 
