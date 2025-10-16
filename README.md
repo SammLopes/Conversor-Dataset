@@ -84,11 +84,7 @@ python app/main.py
 ---
 
 
-## 🧠 Sobre o SDAVC Adaptado
-
-
-O modelo SDAVC-AVC é uma adaptação expandida da proposta de Reis (2021), originalmente binária (AVCi vs AVCh), agora estendida para multiclasse (incluindo Normal). A arquitetura implementada mantém os blocos convolucionais originais com filtros `[32, 64, 128, 256]`, ativação ReLU, pooling, batch normalization e regularização por dropout.
-
+## 🧠 Sobre o SDAVC Adaptado>
 
 Ele é treinado com validação cruzada estratificada (5 folds), utilizando `Adam`, `categorical_crossentropy`, e avaliado com métricas clínicas como sensibilidade, precisão, F1-score e AUC-ROC.
 
@@ -143,6 +139,19 @@ Esse processo possibilita adaptar o TransUNet para domínios específicos (como 
 | Uso de memória         | ✅ Sim (`psutil`)     | ✅ Sim       | ⚠️ Estimado |
 
 ---
+
+## Treinamento e Validação do Modelo Yolo 
+- Abra seu terminal na pasta raiz do projeto e utilize os seguintes comandos:
+> 1 Para Treinar o Modelo
+- Execute o comando abaixo. Ele chamará a função ```train()``` do arquivo treino.py.
+```bash
+python app/yolo.py train
+```
+> 2 Para Validar o Modelo
+- Após o treinamento, você pode validar o melhor modelo salvo. Para isso, use o comando ```validate``` e forneça o caminho para o arquivo ```.pt``` usando o argumento ```--model```.
+```bash
+python run.py validate --model "runs/classify/yolo_avc_v8m_multiclasse/weights/best.pt"
+```
 
 ## 👨‍💻 Autor
 
