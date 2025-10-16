@@ -15,14 +15,14 @@ def train():
         os.makedirs('runs/classify')
 
     # Carrega um modelo pré-treinado
-    model = YOLO("yolov8m.pt")
+    model = YOLO("yolov8s.pt")
     
     # Exibe informações do modelo
     model.info()
     
     # Treina o modelo com as configurações definidas
     model.train(
-        name="yolo_avc_v8m_multiclasse",
+        name="yolo_avc_v8s_multiclasse",
         data='yolov8/data.yaml',
         epochs=100,
         imgsz=224,
@@ -39,7 +39,7 @@ def train():
         save=True                 # Salva o modelo treinado
     )
     print("\n✅ Treinamento concluído!")
-    print("O melhor modelo foi salvo em: runs/classify/yolo_avc_v8m_multiclasse/weights/best.pt")
+    print("O melhor modelo foi salvo em: runs/classify/yolo_avc_v8s_multiclasse/weights/best.pt")
 
 def validate_model(model_path):
     """
