@@ -1,7 +1,7 @@
 # tests/test_core_functions.py
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 import shutil
 import pytest
 import numpy as np
@@ -16,7 +16,7 @@ from app.core import balanceamento, conversao, fusao, preprocessamento
 from app.core.sdac_avc.avaliador_sdavc import avaliar_sdavc_model
 from app.core.sdac_avc.modelo_sdac  import build_sdavc_model
 from app.core.sdac_avc.treino_sdac_avc import train_sdavc_kfold
-from app.core.treino import train, validate_model
+from app.core.treino_yolo import train, validate_model
 
 # Adiciona o diretório raiz ao path para permitir a importação de 'app'
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
