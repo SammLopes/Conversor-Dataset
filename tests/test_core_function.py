@@ -155,8 +155,8 @@ def test_train_calls_yolo_correctly(mocker):
     com os parâmetros esperados, sem executar o treinamento real.
     """
     # Configura os mocks usando o fixture 'mocker' do pytest-mock
-    mock_makedirs = mocker.patch('app.core.treino.os.makedirs')
-    mock_yolo = mocker.patch('app.core.treino.YOLO')
+    mock_makedirs = mocker.patch('app.core.treino_yolo.os.makedirs')
+    mock_yolo = mocker.patch('app.core.treino_yolo.YOLO')
 
     # Configura o mock da instância do YOLO
     mock_yolo_instance = MagicMock()
@@ -181,7 +181,7 @@ def test_train_calls_yolo_correctly(mocker):
     _, kwargs = mock_yolo_instance.train.call_args
     
     # Verifica alguns dos parâmetros mais importantes usando 'assert'
-    assert kwargs['name'] == "yolo_avc_v8m_multiclass"
+    assert kwargs['name'] == "yolo_avc_v8s_multiclasse"
     assert kwargs['data'] == 'yolov8/data.yaml'
     assert kwargs['epochs'] == 100
     assert kwargs['device'] == 'cuda:0'
@@ -193,8 +193,8 @@ def test_validate_model_file_not_found(mocker):
     caminho de modelo inexistente.
     """
     # Configura o mock para simular que o arquivo não existe
-    mock_exists = mocker.patch('app.core.treino.os.path.exists', return_value=False)
-    model_path = "caminho/falso/best.pt"
+    mock_exists = mocker.patch('app.core.treino_yolo.os.path.exists', return_value=False)
+    model_path = "runs/classify/yolo_avc_v8s_multiclasse/weights/best.pt"
     
     validate_model(model_path)
     
@@ -207,10 +207,10 @@ def test_validate_model_success(mocker):
     do método model.val() para verificar os cálculos das métricas.
     """
     # Configura os mocks
-    mocker.patch('app.core.treino.os.path.exists', return_value=True)
-    mock_yolo = mocker.patch('app.core.treino.YOLO')
-    
-    model_path = "caminho/existente/best.pt"
+    mocker.patch('app.core.treino_yolo.os.path.exists', return_value=True)
+    mock_yolo = mocker.patch('app.core.treino_yolo.YOLO')
+
+    model_path = "runs/classify/yolo_avc_v8s_multiclasse/weights/best.pt"
 
     # --- Configuração do Mock ---
     # 1. Simula a instância do modelo YOLO
