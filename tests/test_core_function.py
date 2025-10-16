@@ -10,10 +10,16 @@ import tensorflow as tf
 import pandas as pd
 import tempfile
 import gc
+import sys
+from unittest.mock import MagicMock
 from app.core import balanceamento, conversao, fusao, preprocessamento
 from app.core.sdac_avc.avaliador_sdavc import avaliar_sdavc_model
 from app.core.sdac_avc.modelo_sdac  import build_sdavc_model
 from app.core.sdac_avc.treino_sdac_avc import train_sdavc_kfold
+from app.core.treino import train, validate_model
+
+# Adiciona o diretório raiz ao path para permitir a importação de 'app'
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 @pytest.fixture(autouse=True)
 def cleanup():
@@ -141,3 +147,100 @@ def test_tqdm_is_show(tmp_path, capsys):
     out, err = capsys.readouterr()
     print(out)
     assert "accuracy:" in out or "loss:" in out or "step" in out or "━" in out
+
+
+def test_train_calls_yolo_correctly(mocker):
+    """
+    Testa se a função train() inicializa o YOLO e chama o método train()
+    com os parâmetros esperados, sem executar o treinamento real.
+    """
+    # Configura os mocks usando o fixture 'mocker' do pytest-mock
+    mock_makedirs = mocker.patch('app.core.treino.os.makedirs')
+    mock_yolo = mocker.patch('app.core.treino.YOLO')
+
+    # Configura o mock da instância do YOLO
+    mock_yolo_instance = MagicMock()
+    mock_yolo.return_value = mock_yolo_instance
+
+    # Executa a função a ser testada
+    train()
+
+    # Verifica se o diretório foi verificado/criado
+    mock_makedirs.assert_called_once_with('runs/classify')
+    
+    # Verifica se o YOLO foi instanciado com o modelo base correto
+    mock_yolo.assert_called_once_with("yolov8m.pt")
+
+    # Verifica se as informações do modelo foram exibidas
+    mock_yolo_instance.info.assert_called_once()
+
+    # Verifica se a função de treinamento foi chamada uma vez
+    mock_yolo_instance.train.assert_called_once()
+    
+    # Pega os argumentos com os quais a função .train() foi chamada
+    _, kwargs = mock_yolo_instance.train.call_args
+    
+    # Verifica alguns dos parâmetros mais importantes usando 'assert'
+    assert kwargs['name'] == "yolo_avc_v8m_multiclass"
+    assert kwargs['data'] == 'yolov8/data.yaml'
+    assert kwargs['epochs'] == 100
+    assert kwargs['device'] == 'cuda:0'
+
+
+def test_validate_model_file_not_found(mocker):
+    """
+    Testa se a função validate_model() lida corretamente com um
+    caminho de modelo inexistente.
+    """
+    # Configura o mock para simular que o arquivo não existe
+    mock_exists = mocker.patch('app.core.treino.os.path.exists', return_value=False)
+    model_path = "caminho/falso/best.pt"
+    
+    validate_model(model_path)
+    
+    # Garante que a lógica de verificação de existência do arquivo foi chamada
+    mock_exists.assert_called_once_with(model_path)
+
+def test_validate_model_success(mocker):
+    """
+    Testa o fluxo de sucesso da função validate_model(), simulando a saída
+    do método model.val() para verificar os cálculos das métricas.
+    """
+    # Configura os mocks
+    mocker.patch('app.core.treino.os.path.exists', return_value=True)
+    mock_yolo = mocker.patch('app.core.treino.YOLO')
+    
+    model_path = "caminho/existente/best.pt"
+
+    # --- Configuração do Mock ---
+    # 1. Simula a instância do modelo YOLO
+    mock_yolo_instance = MagicMock()
+    mock_yolo_instance.names = {0: 'classe_A', 1: 'classe_B'}
+
+    # 2. Simula o objeto 'results' retornado por model.val()
+    mock_results = MagicMock()
+    
+    # 3. Simula os rótulos verdadeiros: results.boxes.cls.cpu()
+    mock_boxes = MagicMock()
+    mock_boxes.cls.cpu.return_value = np.array([0, 1, 0, 1])
+    mock_results.boxes = mock_boxes
+
+    # 4. Simula as probabilidades previstas: results.probs.data.cpu().numpy()
+    mock_probs = MagicMock()
+    y_scores = np.array([[0.9, 0.1], [0.2, 0.8], [0.8, 0.2], [0.3, 0.7]])
+    mock_probs.data.cpu.return_value.numpy.return_value = y_scores
+    mock_results.probs = mock_probs
+
+    # 5. Configura a instância do mock para retornar os resultados simulados
+    mock_yolo_instance.val.return_value = mock_results
+    mock_yolo.return_value = mock_yolo_instance
+
+    # --- Execução e Verificação ---
+    validate_model(model_path)
+
+    # Verifica se o YOLO foi instanciado com o caminho correto
+    mock_yolo.assert_called_once_with(model_path)
+
+    # Verifica se a validação foi chamada com os dados corretos
+    mock_yolo_instance.val.assert_called_once_with(data="yolov8/data.yaml", conf=0.25)
+
