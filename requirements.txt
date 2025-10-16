@@ -1,6 +1,7 @@
 numpy
 scikit-image
 pytest
+pytest-mock
 torch>=1.13.0
 pyyaml
 opencv-python
