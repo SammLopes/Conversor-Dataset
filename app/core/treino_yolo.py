@@ -12,7 +12,7 @@ def train():
     """
     # Garante que os diretórios para os resultados existam
     if not os.path.exists('runs/classify'):
-        os.makedirs('runs/classify')
+        os.makedirs('runs/classify',  exist_ok=True)
 
     # Carrega um modelo pré-treinado
     model = YOLO("yolov8s.pt")
