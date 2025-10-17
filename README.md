@@ -195,6 +195,23 @@ python run_keras.py evaluate --data-dir /caminho/para/seu_dataset_de_teste
 Os resultados (gráficos, relatórios) serão salvos no diretório ```avaliacoes/```.
 
 
+## Configuração do Ambiente e Instalação
+
+-  Instale o python na maquina. 
+
+> 1 Crie o Ambiente Virtual (```venv```)
+```bash 
+python3 -m venv .venv
+```
+> 2 Ative o Ambiente Virtual
+```bash 
+source .venv/bin/activate
+```
+> 3 Instale as dependencias
+```bash
+pip install -r requirements.txt
+```
+
 ## 👨‍💻 Autor
 
 Samuel Paviotti
