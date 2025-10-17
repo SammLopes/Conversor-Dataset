@@ -23,7 +23,7 @@ def train():
     # Treina o modelo com as configurações definidas
     model.train(
         name="yolo_avc_v8s_multiclasse",
-        data='yolov8/data.yaml',
+        data='./data/balanced/yolov8-balanced/data.yaml',
         epochs=100,
         imgsz=224,
         batch=32,                 # Otimizado para datasets médicos pequenos
