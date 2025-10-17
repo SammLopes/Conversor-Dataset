@@ -9,19 +9,29 @@ Este projeto organiza o processo completo de preparação, fusão, balanceamento
 ```
 app/
 ├── core/               # Módulos funcionais (balanceamento, fusão, conversão, treino, pré-processamento)
+├── core/
+    ├── sdac_avc        # modulos do modeloes SDAC_AVC(avaliador_sdavc, modelo_sdacv, treino_sdac_avc)
+    ├── transunet       # modulos de interação com o TransUNet (augmentation, dataset, finetune, pretrain, pseudo_masks, utils)
 ├── utils/              # Constantes e paths reutilizáveis
 ├── main.py             # Pipeline principal com chamadas diretas
+├── yolo.py             # Scritp que executa imediatamente o treinamento e validação
+data/
+├── balanced 
+    ├── yolov8-balanced/     # Dataset final balanceado
+    ├── yolov8-extra/        # Imagens excedentes após balanceamento 
+├── final
+    ├──dataset_custom/       # Dataset final convertido para o formato customizado
+├── pre-processed 
+    ├── dataset_custom_preprocessed/  # Dataset custom com imagens pré-processadas
+├── processed 
+    ├── output_dataset_*/    # Saídas intermediárias convertidas para YOLO
+    ├── yolov8-copy/         # Pasta de fusão principal (dataset acumulado)    
+├──raw
+    ├── datasets_unformat/  # Dados brutos não formatados (por classe)
+    ├── dataset_yolo/       # Dados já no formato YOLO + YAML
 
-datasets/
-├── datasets_unformat/  # Dados brutos não formatados (por classe)
-├── dataset_yolo/       # Dados já no formato YOLO + YAML
-
-output_dataset_*/        # Saídas intermediárias convertidas para YOLO
-yolov8-copy/             # Pasta de fusão principal (dataset acumulado)
-yolov8-balanced/         # Dataset final balanceado
-yolov8-extra/            # Imagens excedentes após balanceamento
-dataset_custom/          # Dataset final convertido para o formato customizado
-dataset_custom_preprocessed/  # Dataset custom com imagens pré-processadas
+├── tests                   # Diretório de tests 
+    ├── test_core_functions # Testes unitários do modulo core 
 ```
 
 ---
@@ -53,13 +63,14 @@ python app/main.py
 ---
 
 ## 📦 Módulos
-
+- `core/yolo.py` →  Orquestrador da execução do treinamento do yolo e do validador do modelo.
 - `core/conversao.py` → Gera labels em formato YOLOv8 a partir de pastas separadas por classe
 - `core/fusao.py` → Junta imagens de diferentes fontes sob um padrão de classes
 - `core/balanceamento.py` → Garante proporções fixas entre as classes
-- `core/treino.py` → Treina e valida modelos YOLOv8 (Ultralytics)
+- `core/treino_yolo.py` → Treina e valida modelos YOLOv8 (Ultralytics)
 - `core/preprocessamento.py` → Aplica janelamento, equalização, filtragem e normalização para uso em classificadores
-
+- `core/sdacv ` → Modulo que engloba a criação treinamento e validação do modelo sdacv_avc.
+- `code/transunet` → Modulo que trata do pre-treinamento, fine-tuning, criação de pseudo-masks, carregamento do datasets e augmentation.
 ---
 
 ## ⚙️ Dependências principais
@@ -152,6 +163,37 @@ python app/yolo.py train
 ```bash
 python run.py validate --model "runs/classify/yolo_avc_v8m_multiclasse/weights/best.pt"
 ```
+
+## Treinamento e Validação do Modelo SDAC_AVC
+>1 Estrutura do datasets
+```
+├── dataset_custom_preprocessed
+    ├── train
+        ├── Hemorrhagic Stroke
+        ├── Ischemic Stroke
+        ├── Normal
+    ├── valid
+        ├── Hemorrhagic Stroke
+        ├── Ischemic Stroke
+        ├── Normal
+```
+
+>2 Uso
+- Use o comando ```train``` e forneça o caminho do diretório para o dataset se treino, nesse trabalho o nome do diretório é ```dataset_custom_preprocessed```, pode mudar o lugar a medida que seja necessário.
+```bash
+python app/sdac_avc.py train --data_dir /caminho/para/seu_dataset
+```
+Os modelos (```.keras```) serão salvos no diretório ```modelos/sdavc/```.
+
+>3 Avaliar Modelo
+- Use o comando ```evaluate``` e aponte para o diretório do dataset que deseja usar para a avaliação (pode ser o mesmo do treino ou um de teste separado com a mesma estrutura).
+
+```bash
+python run_keras.py evaluate --data-dir /caminho/para/seu_dataset_de_teste
+```
+
+Os resultados (gráficos, relatórios) serão salvos no diretório ```avaliacoes/```.
+
 
 ## 👨‍💻 Autor
 
