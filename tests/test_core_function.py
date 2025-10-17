@@ -28,6 +28,8 @@ def cleanup():
 
 tmp_dir = tempfile.mkdtemp()
 
+## Preprocessamento Tests
+
 def test_window_image():
     img = np.linspace(0, 255, 256).astype(np.uint8)
     result = preprocessamento.window_image(img, window_center=128, window_width=128)
@@ -98,6 +100,9 @@ def test_balancear_dataset(tmp_path):
     balanced_imgs = list((output_root / "train/images").glob("*.jpg"))
     assert len(balanced_imgs) > 0
 
+
+## SDAVC Tests
+
 def test_sdavc_model_runs():
 
     model = build_sdavc_model(input_shape=(224, 224, 1), num_classes=3)
@@ -149,11 +154,14 @@ def test_tqdm_is_show(tmp_path, capsys):
     assert "accuracy:" in out or "loss:" in out or "step" in out or "━" in out
 
 
+## YOLO Tests
+
 def test_train_calls_yolo_correctly(mocker):
     """
     Testa se a função train() inicializa o YOLO e chama o método train()
     com os parâmetros esperados, sem executar o treinamento real.
     """
+    mocker.patch('app.core.treino_yolo.os.path.exists', return_value=False)
     # Configura os mocks usando o fixture 'mocker' do pytest-mock
     mock_makedirs = mocker.patch('app.core.treino_yolo.os.makedirs')
     mock_yolo = mocker.patch('app.core.treino_yolo.YOLO')
@@ -166,10 +174,10 @@ def test_train_calls_yolo_correctly(mocker):
     train()
 
     # Verifica se o diretório foi verificado/criado
-    mock_makedirs.assert_called_once_with('runs/classify')
+    mock_makedirs.assert_called_once_with('runs/classify', exist_ok=True)
     
     # Verifica se o YOLO foi instanciado com o modelo base correto
-    mock_yolo.assert_called_once_with("yolov8m.pt")
+    mock_yolo.assert_called_once_with("yolov8s.pt")
 
     # Verifica se as informações do modelo foram exibidas
     mock_yolo_instance.info.assert_called_once()
@@ -185,7 +193,6 @@ def test_train_calls_yolo_correctly(mocker):
     assert kwargs['data'] == 'yolov8/data.yaml'
     assert kwargs['epochs'] == 100
     assert kwargs['device'] == 'cuda:0'
-
 
 def test_validate_model_file_not_found(mocker):
     """

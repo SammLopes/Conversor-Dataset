@@ -52,6 +52,11 @@ def preprocess_dataset(input_root, output_root, output_size=(224, 224)):
     print(f"✅ Pré-processamento concluído: {output_root}")
 
 def carregar_dataset_preprocessado(root_dir):
+    """
+    Carrega o dataset pré-processado a partir de uma estrutura de diretórios.
+    Espera-se que o root_dir contenha subpastas 'train' e/ou 'valid',
+    que por sua vez contêm subpastas para cada classe.
+    """
     print(f"📦 Carregando dataset pré-processado de: {root_dir}")
     imagens = []
     rotulos = []
