@@ -1,6 +1,6 @@
 import argparse
 import os
-from core.treino_yolo import train, validate_model
+from app.core.treino_yolo import train, validate_model
 
 def main():
     """
