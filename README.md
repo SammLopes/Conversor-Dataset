@@ -156,12 +156,13 @@ Esse processo possibilita adaptar o TransUNet para domínios específicos (como 
 > 1 Para Treinar o Modelo
 - Execute o comando abaixo. Ele chamará a função ```train()``` do arquivo treino.py.
 ```bash
-python app/yolo.py train
+python -m app.yolo train
+
 ```
 > 2 Para Validar o Modelo
 - Após o treinamento, você pode validar o melhor modelo salvo. Para isso, use o comando ```validate``` e forneça o caminho para o arquivo ```.pt``` usando o argumento ```--model```.
 ```bash
-python run.py validate --model "runs/classify/yolo_avc_v8m_multiclasse/weights/best.pt"
+python -m app.yolo validate --model "runs/classify/yolo_avc_v8m_multiclasse/weights/best.pt"
 ```
 
 ## Treinamento e Validação do Modelo SDAC_AVC
