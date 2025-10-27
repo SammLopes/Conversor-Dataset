@@ -13,7 +13,7 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
 
-    # Adiciona o argumento 'action' para escolher entre 'train' e 'validate'
+    # Argumento 1: Adiciona o argumento 'action' para escolher entre 'train' e 'validate'
     parser.add_argument(
         'action',
         type=str,
@@ -23,12 +23,21 @@ def main():
              "  validate - Avalia um modelo já treinado."
     )
 
-    # Adiciona o argumento opcional '--model' para o caminho do modelo na validação
+    # Argumento 2: Adiciona o argumento opcional '--model' para o caminho do modelo na validação
     parser.add_argument(
         '--model',
         type=str,
         help="Caminho para o modelo treinado (obrigatório para a ação 'validate').\n"
              "Exemplo: runs/classify/yolo_avc_v8m_multiclasse/weights/best.pt"
+    )
+
+    # Argumento 3: Caminho do Dataset (Opcional, mas obrigatório para 'validate')
+    parser.add_argument(
+        '--dataset',
+        type=str,
+        help="Caminho para os dados de validação (obrigatório para 'validate').\n"
+             "Ex (Detecção):     caminho/para/data.yaml\n"
+             "Ex (Classificação): caminho/para/diretorio_raiz_dataset/"
     )
 
     args = parser.parse_args()
@@ -39,12 +48,18 @@ def main():
         train()
     
     elif args.action == 'validate':
+    
         if not args.model:
             # Se a ação for 'validate', o argumento '--model' é obrigatório
             parser.error("--model é obrigatório para a ação 'validate'.")
+    
+        if not args.dataset:
+            parser.error("--dataset é obrigatório para a ação 'validate'.")
         
         print(f"\n🔍 Iniciando a validação do modelo: {args.model}")
-        validate_model(args.model)
+        print(f"   Usando o dataset em: {args.dataset}")
+        
+        validate_model(args.model, args.dataset)
 
 if __name__ == '__main__':
     # Cria o diretório app/core se ele não existir, para garantir a estrutura
