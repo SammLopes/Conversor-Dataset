@@ -29,8 +29,8 @@ data/
 ├──raw
     ├── datasets_unformat/  # Dados brutos não formatados (por classe)
     ├── dataset_yolo/       # Dados já no formato YOLO + YAML
-
-├── tests                   # Diretório de tests 
+├── results                 # Armazena os resultados dos treinamentos
+tests                   # Diretório de tests 
     ├── test_core_functions # Testes unitários do modulo core 
 ```
 
@@ -162,7 +162,11 @@ python -m app.yolo train
 > 2 Para Validar o Modelo
 - Após o treinamento, você pode validar o melhor modelo salvo. Para isso, use o comando ```validate``` e forneça o caminho para o arquivo ```.pt``` usando o argumento ```--model```.
 ```bash
-python -m app.yolo validate --model "runs/classify/yolo_avc_v8m_multiclasse/weights/best.pt"
+python -m app.yolo validate --model "./data/results/yolo_avc_v8m_multiclasse/weights/best.pt" --dataset "./data/datasets_training/dataset_custom"
+```
+- Caso seja um modelo de detecção.
+```bash     
+python -m app.yolo validate --model "./data/results/yolo_avc_v8m_detect3/weights/best.pt" --dataset "./data/datasets_training/yolov8-balanced"
 ```
 
 ## Treinamento e Validação do Modelo SDAC_AVC
