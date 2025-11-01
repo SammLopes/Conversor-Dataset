@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
 
 from app.core.sdac_avc.treino_sdac_avc import train_sdavc_kfold
 from app.core.sdac_avc.avaliador_sdavc import avaliar_sdavc_model
-from app.core.preprocessamento import carregar_dataset_preprocessado
+from app.core.preprocessamento import carregar_dataset_preprocessado, carregar_split_preprocessado
 
 def main():
     parser = argparse.ArgumentParser(description="Script para treinar e avaliar o modelo SDAVC (Keras).")
@@ -34,10 +34,22 @@ def main():
 
     if args.command == "train":
         print("\nIniciando o Treinamento K-Fold...")
+        # Carrega o dataset de TREINO (que contém subpastas train/valid)
+        X, y = carregar_dataset_preprocessado(args.data_dir)
+        if X.size == 0:
+             print("❌ Erro fatal: O dataset de treino está vazio. Verifique o caminho e a estrutura.")
+             return
         train_sdavc_kfold(X, y, save_dir=args.save_dir)
+        
     elif args.command == "evaluate":
         print("\nIniciando a Avaliação do Modelo...")
+        # Carrega o dataset de AVALIAÇÃO (ex: a pasta 'valid' ou 'test' direto)
+        X, y = carregar_split_preprocessado(args.data_dir)
+        if X.size == 0:
+             print("❌ Erro fatal: O dataset de avaliação está vazio. Verifique o caminho.")
+             return
         avaliar_sdavc_model(X, y, model_dir=args.model_dir, output_dir=args.output_dir)
+
 
 if __name__ == "__main__":
     main()
