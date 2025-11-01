@@ -63,35 +63,90 @@ def carregar_dataset_preprocessado(root_dir):
     classes = {}
     class_id = 0
 
-    for split in ["train", "valid"]:
+    for split in ["train", "valid"]: # Loop 1
         split_path = os.path.join(root_dir, split)
         if not os.path.exists(split_path):
             continue
 
+        # CORRIGIDO: Este loop agora está DENTRO do 'for split...'
+        for class_name in sorted(os.listdir(split_path)): # Loop 2
+            class_path = os.path.join(split_path, class_name)
+            if not os.path.isdir(class_path):
+                continue
 
-    for class_name in sorted(os.listdir(split_path)):
-        class_path = os.path.join(split_path, class_name)
-        if not os.path.isdir(class_path):
-            continue
+            # CORRIGIDO: Este bloco agora está DENTRO do 'for class_name...'
+            # Registra cada classe que encontrar
+            if class_name not in classes:
+                classes[class_name] = class_id
+                class_id += 1
 
-
-    if class_name not in classes:
-        classes[class_name] = class_id
-        class_id += 1
-
-
-    for fname in tqdm(os.listdir(class_path), desc=f"{split}/{class_name}"):
-        img_path = os.path.join(class_path, fname)
-        img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-        if img is None:
-            continue
-        img = img.astype(np.float32) / 255.0
-        img = np.expand_dims(img, axis=-1) # canal único
-        imagens.append(img)
-        rotulos.append(classes[class_name])
-
+            # CORRIGIDO: Este loop agora está DENTRO do 'for class_name...'
+            # Carrega todas as imagens de cada classe
+            for fname in tqdm(os.listdir(class_path), desc=f"{split}/{class_name}"): # Loop 3
+                img_path = os.path.join(class_path, fname)
+                img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                if img is None:
+                    continue
+                img = img.astype(np.float32) / 255.0
+                img = np.expand_dims(img, axis=-1) # canal único
+                imagens.append(img)
+                rotulos.append(classes[class_name])
 
     X = np.array(imagens)
     y = np.array(rotulos)
+    
+    # Após a correção, 'len(classes)' deve ser > 1
     print(f"✅ Dataset carregado: {X.shape[0]} amostras, {len(classes)} classes")
+    return X, y
+
+def carregar_split_preprocessado(split_dir):
+    """
+    Carrega um ÚNICO split de dataset (ex: 'valid' ou 'test')
+    Espera-se que o split_dir contenha subpastas para cada classe.
+    
+    Usado para carregar o conjunto de dados de AVALIAÇÃO.
+    """
+    print(f"📦 Carregando split ÚNICO de: {split_dir} (para Avaliação)")
+    imagens = []
+    rotulos = []
+    classes = {}
+    class_id = 0
+
+    if not os.path.isdir(split_dir):
+        print(f"❌ Erro: Caminho '{split_dir}' não é um diretório.")
+        return np.array([]), np.array([]) # Retorna arrays vazios
+
+    # Procura por pastas de classe DIRETAMENTE dentro do diretório
+    for class_name in sorted(os.listdir(split_dir)):
+        class_path = os.path.join(split_dir, class_name)
+        if not os.path.isdir(class_path):
+            continue
+
+        if class_name not in classes:
+            classes[class_name] = class_id
+            class_id += 1
+
+        for fname in tqdm(os.listdir(class_path), desc=f"Carregando {class_name}"):
+            img_path = os.path.join(class_path, fname)
+            try:
+                img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+                if img is None:
+                    print(f"Aviso: Não foi possível ler a imagem {img_path}. Pulando.")
+                    continue
+                
+                img = img.astype(np.float32) / 255.0
+                img = np.expand_dims(img, axis=-1) # canal único
+                imagens.append(img)
+                rotulos.append(classes[class_name])
+            except Exception as e:
+                print(f"Erro ao processar {img_path}: {e}")
+
+    if not imagens:
+         print(f"❌ Erro: Nenhuma imagem encontrada em '{split_dir}'. Verifique o caminho.")
+         return np.array([]), np.array([])
+
+    X = np.array(imagens)
+    y = np.array(rotulos)
+    
+    print(f"✅ Split carregado: {X.shape[0]} amostras, {len(classes)} classes")
     return X, y
