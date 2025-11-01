@@ -13,7 +13,8 @@ pandas
 matplotlib
 
 #tensorflow==2.20.0
-tensorflow==2.13.*
+#tensorflow==2.13.*
+tensorflow>=2.16,<2.20
 keras==3.11.3
 
 # (opcional) para uso em GPU
