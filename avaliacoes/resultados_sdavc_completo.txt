@@ -1,0 +1,88 @@
+--- Avaliação Individual: sdavc_fold1.keras ---
+              precision    recall  f1-score   support
+
+           0       0.69      0.57      0.62      1200
+           1       0.78      0.79      0.78      1600
+           2       0.69      0.79      0.73      1200
+
+    accuracy                           0.72      4000
+   macro avg       0.72      0.72      0.71      4000
+weighted avg       0.72      0.72      0.72      4000
+
+AUC-ROC: 0.8897
+Especificidade (Macro): 0.8611
+
+--- Avaliação Individual: sdavc_fold2.keras ---
+              precision    recall  f1-score   support
+
+           0       0.67      0.78      0.72      1200
+           1       0.77      0.80      0.78      1600
+           2       0.84      0.64      0.73      1200
+
+    accuracy                           0.75      4000
+   macro avg       0.76      0.74      0.74      4000
+weighted avg       0.76      0.75      0.75      4000
+
+AUC-ROC: 0.9182
+Especificidade (Macro): 0.8725
+
+--- Avaliação Individual: sdavc_fold3.keras ---
+              precision    recall  f1-score   support
+
+           0       0.70      0.61      0.65      1200
+           1       0.76      0.74      0.75      1600
+           2       0.68      0.79      0.73      1200
+
+    accuracy                           0.72      4000
+   macro avg       0.71      0.71      0.71      4000
+weighted avg       0.72      0.72      0.72      4000
+
+AUC-ROC: 0.8849
+Especificidade (Macro): 0.8580
+
+--- Avaliação Individual: sdavc_fold4.keras ---
+              precision    recall  f1-score   support
+
+           0       0.65      0.82      0.73      1200
+           1       0.86      0.70      0.77      1600
+           2       0.79      0.79      0.79      1200
+
+    accuracy                           0.76      4000
+   macro avg       0.77      0.77      0.76      4000
+weighted avg       0.78      0.76      0.76      4000
+
+AUC-ROC: 0.9258
+Especificidade (Macro): 0.8829
+
+--- Avaliação Individual: sdavc_fold5.keras ---
+              precision    recall  f1-score   support
+
+           0       0.63      0.75      0.69      1200
+           1       0.81      0.69      0.75      1600
+           2       0.74      0.74      0.74      1200
+
+    accuracy                           0.72      4000
+   macro avg       0.73      0.73      0.72      4000
+weighted avg       0.74      0.72      0.73      4000
+
+AUC-ROC: 0.9002
+Especificidade (Macro): 0.8638
+
+
+==================================================
+=== Avaliação SDAVC (Ensemble Média de 5 folds) ===
+==================================================
+Acurácia: 0.7825
+Precisão (macro): 0.7802
+Recall (macro): 0.7834
+F1-score (macro): 0.7812
+AUC-ROC (Ensemble): 0.9320
+Tempo médio por imagem (ms): 150.83
+Throughput médio (imagens/s): 6.65
+Memória adicional média (MB): 22.64
+Especificidade (macro): 0.8912
+Especificidade por classe (Ensemble):
+  Classe 0: 0.8736
+  Classe 1: 0.8912
+  Classe 2: 0.9089
+

@@ -1,0 +1,2 @@
+metrica,acuracia,precisao_macro,recall_macro,f1_macro,especificidade_macro,auc_roc,tempo_ms_img_medio,throughput_img_s_medio,memoria_mb_media
+Ensemble,0.7825,0.7801841808466828,0.7834027777777778,0.7812237778713197,0.89125,0.9320225198412698,150.82995200157166,6.648176619791703,22.63671875
