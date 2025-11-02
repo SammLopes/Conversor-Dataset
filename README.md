@@ -186,7 +186,7 @@ python -m app.yolo validate --model "./data/results/yolo_avc_v8m_detect3/weights
 >2 Uso
 - Use o comando ```train``` e forneça o caminho do diretório para o dataset se treino, nesse trabalho o nome do diretório é ```dataset_custom_preprocessed```, pode mudar o lugar a medida que seja necessário.
 ```bash
-python app/sdac_avc.py train --data_dir /caminho/para/seu_dataset
+python -m app.sdac_avc.py train --data_dir /caminho/para/seu_dataset
 ```
 Os modelos (```.keras```) serão salvos no diretório ```modelos/sdavc/```.
 
@@ -194,11 +194,83 @@ Os modelos (```.keras```) serão salvos no diretório ```modelos/sdavc/```.
 - Use o comando ```evaluate``` e aponte para o diretório do dataset que deseja usar para a avaliação (pode ser o mesmo do treino ou um de teste separado com a mesma estrutura).
 
 ```bash
-python run_keras.py evaluate --data-dir /caminho/para/seu_dataset_de_teste
+python -m app.sdac_avc.py evaluate --data-dir /caminho/para/seu_dataset_de_teste
 ```
+>4 Predição do Modelo
+- Este script foi projetado para carregar os modelos .keras que você treinou e usá-los para classificar uma única imagem.
+Ele oferece duas estratégias de predição, que refletem os resultados da sua avaliação (o arquivo resultados_sdavc_por_fold.csv vs. resultados_sdavc_ensemble.csv):
+
+  - Modo de Modelo Único: Você escolhe o seu "melhor" fold (ex: sdavc_fold3.keras) e o utiliza para a previsão. É rápido, mas depende do desempenho desse único modelo.
+
+  - Modo Ensemble (Recomendado): Você fornece a pasta com todos os 5 modelos. O script passa a imagem por cada um, tira a média das probabilidades e dá um resultado final. Este método é mais lento (5x), porém muito mais robusto e confiável, pois representa o seu resultado final (ex: AUC de 0.932).
+
+#### Usando o predictor
+- O script a ser executado é o ```app/core/sdavc/predicao_sdac_avc.py```.
+
+    - Argumento ```--image```: O caminho para a imagem que você quer classificar.
+
+    - Você deve escolher OU ```--model``` OU ```--model-dir```.
+
+### Modo 1: Usando Ensemble
 
 Os resultados (gráficos, relatórios) serão salvos no diretório ```avaliacoes/```.
+- Este é o método mais robusto e reflete seu resultado de AUC de 93.2%. Ele usa os 5 modelos para "votar" no resultado final.
 
+- Use o argumento ```--model-dir``` e passe o caminho para a pasta que contém todos os 5 folds.
+
+```bash
+python -m app.sdac_avc.py \
+    --image /caminho/para/minha_imagem.png \
+    --model-dir ./modelos/sdavc/
+```
+
+#### Exemplo de saída, Ensemble
+```bash
+--- Modo de Predição: Ensemble (K-Fold) ---
+Encontrados 5 modelos para o ensemble.
+Carregando e prevendo com fold 1/5...
+Carregando e prevendo com fold 2/5...
+Carregando e prevendo com fold 3/5...
+Carregando e prevendo com fold 4/5...
+Carregando e prevendo com fold 5/5...
+
+--- Resultado Final ---
+Classe Prevista: Ischemic Stroke
+Confiança: 82.45%
+
+Probabilidades por Classe:
+  Hemorrhagic Stroke: 10.15%
+  Ischemic Stroke: 82.45%
+  Normal: 7.40%
+```
+
+### Modo 2: Usando um Modelo Único (Ex: o "Melhor" Fold)
+
+- Se você olhou seu arquivo resultados_sdavc_por_fold.csv e viu que o sdavc_fold3.keras foi o melhor individualmente, você pode usá-lo sozinho.
+
+- Use o argumento ```--model``` e passe o caminho para o arquivo .keras específico.
+```bash
+python -m app.sdac_avc.py \
+    --image /caminho/para/minha_imagem.png \
+    --model ./modelos/sdavc/sdavc_fold3.keras
+```
+
+#### Exemplo de saída(Modelo Único)
+```bash
+--- Modo de Predição: Modelo Único ---
+Carregando modelo: ./modelos/sdavc/sdavc_fold3.keras
+Fazendo predição...
+
+--- Resultado Final ---
+Classe Prevista: Ischemic Stroke
+Confiança: 80.11%
+
+Probabilidades por Classe:
+  Hemorrhagic Stroke: 12.05%
+  Ischemic Stroke: 80.11%
+  Normal: 7.84%
+
+```
 
 ## Configuração do Ambiente e Instalação
 
