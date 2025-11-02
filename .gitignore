@@ -7,6 +7,8 @@ __pycache__/
 dataset_custom/
 yolov8-balanced-1/
 
+modelos
+
 yolov8/
 yolov8-copy-1/
 runs/
