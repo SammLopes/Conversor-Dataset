@@ -1,231 +1,256 @@
-import tensorflow as tf
+import tensorflow as tensorflow
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.models import Model
+from tensorflow.keras import backend as keras_backend
 from tensorflow.keras.applications import EfficientNetB0, ResNet50
+from tensorflow.keras.regularizers import l2
 
-# --- 1. Hiperparâmetros Globais e do Artigo (Tabela 3) ---
-IMG_SIZE = 224
-HIDDEN_DIM = 128
-NUM_HEADS = 4
-NUM_TRANSFORMER_BLOCKS = 4
-MLP_DIM = 64
 
-# --- 2. [ATUALIZADO] Parâmetros do seu JSON ---
-# (Estes são os valores que você forneceu)
-NUM_CLASSES = 3       # Atualize para o seu dataset (ex: Hemorrhagic, Ischemic, Normal)
-NEW_LEARNING_RATE = 0.0005
-NEW_LOSS_FUNCTION = "categorical_crossentropy"
-NEW_BATCH_SIZE = 32   # Usando o 'max' do seu JSON
-NEW_EPOCHS = 100
-NEW_PATIENCE = 50
-NEW_DROPOUT = 0.3
+class CodificadorDePatches(layers.Layer):
+    """
+    Camada que projeta patches em um espaço de dimensão maior e adiciona
+    incorporação posicional (similar ao Patch + Position Embedding do ViT).
+    """
 
-# --- 3. Funções de Construção do Modelo (Blocos ViT) ---
-
-class PatchEncoder(layers.Layer):
-    """ Camada customizada para adicionar embeddings de posição aos patches. """
-    def __init__(self, num_patches, projection_dim):
-        super(PatchEncoder, self).__init__()
-        self.num_patches = num_patches
-        self.projection_dim = projection_dim
-        self.position_embedding = layers.Embedding(
-            input_dim=num_patches, output_dim=projection_dim
+    def __init__(self, quantidade_de_patches, dimensao_de_incorporacao, **argumentos_adicionais):
+        super().__init__(**argumentos_adicionais)
+        self.quantidade_de_patches = quantidade_de_patches
+        self.camada_de_projecao = layers.Dense(units=dimensao_de_incorporacao)
+        self.camada_de_incorporacao_posicional = layers.Embedding(
+            input_dim=quantidade_de_patches,
+            output_dim=dimensao_de_incorporacao
         )
 
-    def call(self, patch):
-        positions = tf.range(start=0, limit=self.num_patches, delta=1)
-        encoded = patch + self.position_embedding(positions)
-        return encoded
+    def call(self, sequencia_de_patches):
+        indices_de_posicao = tensorflow.range(
+            start=0,
+            limit=self.quantidade_de_patches,
+            delta=1
+        )
+        incorporacoes_posicionais = self.camada_de_incorporacao_posicional(indices_de_posicao)
+        sequencia_projetada = self.camada_de_projecao(sequencia_de_patches)
+        return sequencia_projetada + incorporacoes_posicionais
 
     def get_config(self):
-        config = super().get_config()
-        config.update({
-            "num_patches": self.num_patches,
-            "projection_dim": self.projection_dim,
-        })
-        return config
+        configuracao_base = super().get_config()
+        configuracao_base.update(
+            {
+                "quantidade_de_patches": self.quantidade_de_patches,
+                "dimensao_de_incorporacao": self.camada_de_projecao.units,
+            }
+        )
+        return configuracao_base
 
 
-def create_transformer_encoder_block(inputs, num_heads, projection_dim, mlp_dim):
-    """ Cria um único bloco Transformer Encoder (conforme Figura 4) """
-    x1 = layers.LayerNormalization(epsilon=1e-6)(inputs)
-    attention_output = layers.MultiHeadAttention(
-        num_heads=num_heads, key_dim=projection_dim // num_heads, dropout=0.1
-    )(x1, x1)
-    x2 = layers.Add()([attention_output, inputs])
-    x3 = layers.LayerNormalization(epsilon=1e-6)(x2)
-    x3 = layers.Dense(mlp_dim, activation=tf.nn.gelu)(x3)
-    x3 = layers.Dropout(0.1)(x3)
-    x3 = layers.Dense(projection_dim)(x3)
-    outputs = layers.Add()([x3, x2])
-    return outputs
+class BlocoCodificadorTransformer(layers.Layer):
+    """
+    Bloco transformer com atenção multi-cabeças + MLP, normalização e conexões residuais.
+    """
 
-# --- 4. Funções de Construção do Modelo (Backbones e Modelo Principal) ---
+    def __init__(
+        self,
+        dimensao_de_incorporacao,
+        quantidade_de_cabecas_de_atencao,
+        dimensao_da_camada_alimentada_adiante,
+        taxa_de_dropout,
+        **argumentos_adicionais
+    ):
+        super().__init__(**argumentos_adicionais)
 
-def create_cnn_backbones(input_shape=(IMG_SIZE, IMG_SIZE, 3)):
-    """ Cria os backbones EfficientNetB0 e ResNet50 para extração de features. """
-    input_layer = layers.Input(shape=input_shape, name="input_image")
-
-    # Ramificação 1: EfficientNet-B0
-    base_effnet = EfficientNetB0(
-        include_top=False, weights='imagenet', input_tensor=input_layer
-    )
-    base_effnet.trainable = False 
-    effnet_output = base_effnet.get_layer('block7a_project_conv').output
-    
-    # Ramificação 2: ResNet-50
-    base_resnet = ResNet50(
-        include_top=False, weights='imagenet', input_shape=input_shape
-    )
-    base_resnet.trainable = False
-    resnet_output_tensor = base_resnet(input_layer) 
-    # Precisamos obter a saída pelo nome da camada no *objeto* base_resnet
-    resnet_output = base_resnet.get_layer('conv5_block3_out').output
-
-    return input_layer, effnet_output, resnet_output
-
-
-def build_effresnet_vit(
-    input_shape=(IMG_SIZE, IMG_SIZE, 3),
-    num_classes=NUM_CLASSES,
-    num_transformer_blocks=NUM_TRANSFORMER_BLOCKS,
-    hidden_dim=HIDDEN_DIM,
-    num_heads=NUM_HEADS,
-    mlp_dim=MLP_DIM,
-    dropout_rate=0.3  # <-- [ATUALIZADO]
-):
-    """ Constrói e retorna o modelo EFFResNet-ViT completo (Figura 4). """
-    
-    # PASSO 1: Backbones CNN
-    input_layer, effnet_features, resnet_features = create_cnn_backbones(input_shape)
-    
-    # PASSO 2: Concatenação
-    fused_features = layers.Concatenate(axis=-1, name="concatenation")(
-        [effnet_features, resnet_features]
-    )
-
-    # PASSO 3: "Get Feature Map" (Conv2D pós-concatenação)
-    feature_map = layers.Conv2D(
-        filters=256, kernel_size=(1, 1), activation='relu', padding='same', name="feature_fusion_conv"
-    )(fused_features)
-
-    # PASSO 4: Geração de Patches (do mapa de features 7x7)
-    patch_embeddings = layers.Conv2D(
-        filters=hidden_dim, kernel_size=(1, 1), strides=(1, 1),
-        padding='valid', name="patch_embedding_conv"
-    )(feature_map)
-    
-    h, w = patch_embeddings.shape[1], patch_embeddings.shape[2]
-    num_patches = h * w
-    
-    patch_embeddings_flat = layers.Reshape(
-        (num_patches, hidden_dim), name="flatten_patches"
-    )(patch_embeddings)
-
-    # PASSO 5: Módulo Transformer
-    encoded_patches = PatchEncoder(num_patches, hidden_dim)(patch_embeddings_flat)
-    transformer_output = encoded_patches
-    for _ in range(num_transformer_blocks):
-        transformer_output = create_transformer_encoder_block(
-            transformer_output, num_heads, hidden_dim, mlp_dim
+        self.camada_de_normalizacao_antes_da_atencao = layers.LayerNormalization(epsilon=1e-6)
+        self.camada_de_atencao_multi_cabecas = layers.MultiHeadAttention(
+            num_heads=quantidade_de_cabecas_de_atencao,
+            key_dim=dimensao_de_incorporacao,
+            dropout=taxa_de_dropout
         )
 
-    # PASSO 6: Bloco Pós-Transformer
-    features_2d = layers.Reshape((h, w, hidden_dim), name="reshape_post_transformer")(transformer_output)
-    post_transformer_features = layers.Conv2D(
-        filters=64, kernel_size=(3, 3), padding='same', name="post_transformer_conv"
-    )(features_2d)
-    post_transformer_features = layers.BatchNormalization(name="post_transformer_bn")(post_transformer_features)
-    post_transformer_features = layers.Activation('relu', name="post_transformer_relu")(post_transformer_features)
-    pooled_features = layers.GlobalAveragePooling2D(name="gap_layer")(post_transformer_features)
+        self.camada_de_normalizacao_antes_da_mlp = layers.LayerNormalization(epsilon=1e-6)
+        self.rede_alimentada_adiante = keras.Sequential(
+            [
+                layers.Dense(units=dimensao_da_camada_alimentada_adiante, activation="gelu"),
+                layers.Dropout(rate=taxa_de_dropout),
+                layers.Dense(units=dimensao_de_incorporacao),
+                layers.Dropout(rate=taxa_de_dropout),
+            ]
+        )
 
-    # PASSO 7: Cabeça de Classificação (MLP Head)
-    mlp_output = layers.Dense(
-        mlp_dim, activation='relu', 
-        kernel_regularizer=tf.keras.regularizers.l2(0.01), 
-        name="mlp_dense"
-    )(pooled_features)
-    
-    # [ATUALIZADO] Usando o dropout_rate do seu JSON
-    mlp_output = layers.Dropout(dropout_rate, name="mlp_dropout")(mlp_output)
+    def call(self, sequencia_de_entrada, treinamento=False):
+        sequencia_normalizada_para_atencao = self.camada_de_normalizacao_antes_da_atencao(sequencia_de_entrada)
+        sequencia_apos_atencao = self.camada_de_atencao_multi_cabecas(
+            sequencia_normalizada_para_atencao,
+            sequencia_normalizada_para_atencao,
+            treinamento=treinamento
+        )
+        sequencia_apos_residual_de_atencao = sequencia_de_entrada + sequencia_apos_atencao
 
-    classifier_output = layers.Dense(
-        num_classes, activation='softmax', name="classifier_output"
-    )(mlp_output)
+        sequencia_normalizada_para_mlp = self.camada_de_normalizacao_antes_da_mlp(
+            sequencia_apos_residual_de_atencao
+        )
+        sequencia_apos_mlp = self.rede_alimentada_adiante(
+            sequencia_normalizada_para_mlp,
+            training=treinamento
+        )
+        sequencia_apos_residual_de_mlp = sequencia_apos_residual_de_atencao + sequencia_apos_mlp
 
-    # PASSO 8: Criar modelo final
-    model = Model(
-        inputs=input_layer, 
-        outputs=classifier_output, 
-        name="EFFResNet_ViT_Custom"
+        return sequencia_apos_residual_de_mlp
+
+    def get_config(self):
+        configuracao_base = super().get_config()
+        return configuracao_base
+
+
+def criar_backbones_cnn(
+    formato_da_entrada=(224, 224, 3),
+    quantidade_de_camadas_para_finetuning_efficientnet=15,
+    quantidade_de_camadas_para_finetuning_resnet=20
+):
+    """
+    Cria os backbones EfficientNetB0 e ResNet50 com pesos ImageNet.
+    As primeiras camadas são congeladas; apenas as últimas N camadas
+    são liberadas para fine-tuning.
+
+    Retorna:
+        camada_de_entrada, mapa_de_caracteristicas_efficientnet, mapa_de_caracteristicas_resnet
+    """
+    camada_de_entrada = layers.Input(shape=formato_da_entrada, name="entrada_imagem")
+
+    # Backbone EfficientNet-B0
+    modelo_base_efficientnet = EfficientNetB0(
+        include_top=False,
+        weights="imagenet",
+        input_tensor=camada_de_entrada
     )
-    
-    return model
+    modelo_base_efficientnet.trainable = True
+    if quantidade_de_camadas_para_finetuning_efficientnet > 0:
+        for camada in modelo_base_efficientnet.layers[:-quantidade_de_camadas_para_finetuning_efficientnet]:
+            camada.trainable = False
+    saida_efficientnet = modelo_base_efficientnet.get_layer("block7a_project_conv").output
 
-# --- 5. Script Principal: Montagem e Treinamento ---
+    # Backbone ResNet-50
+    modelo_base_resnet = ResNet50(
+        include_top=False,
+        weights="imagenet",
+        input_shape=formato_da_entrada
+    )
+    modelo_base_resnet.trainable = True
+    if quantidade_de_camadas_para_finetuning_resnet > 0:
+        for camada in modelo_base_resnet.layers[:-quantidade_de_camadas_para_finetuning_resnet]:
+            camada.trainable = False
+    saida_resnet = modelo_base_resnet.get_layer("conv5_block3_out").output
 
-# Diretórios de dados (ajuste os nomes conforme sua estrutura)
-TRAIN_DIR = "dataset_custom_preprocessed/train"
-VALID_DIR = "dataset_custom_preprocessed/validation" 
+    return camada_de_entrada, saida_efficientnet, saida_resnet
 
-# Construir o modelo com o dropout customizado
-print("Construindo o modelo...")
-model = build_effresnet_vit(
-    num_classes=NUM_CLASSES,
-    dropout_rate=NEW_DROPOUT
-)
 
-# Compilar o modelo com o optimizer e loss customizados
-print("Compilando o modelo...")
-model.compile(
-    optimizer=keras.optimizers.Adam(learning_rate=NEW_LEARNING_RATE), # [ATUALIZADO]
-    loss=NEW_LOSS_FUNCTION,                                 # [ATUALIZADO]
-    metrics=["accuracy"]
-)
+def criar_modelo_effresnet_vit(
+    formato_da_entrada=(224, 224, 3),
+    quantidade_de_classes=3,
+    quantidade_de_blocos_transformer=4,
+    dimensao_de_incorporacao=128,
+    quantidade_de_cabecas_de_atencao=4,
+    dimensao_da_camada_alimentada_adiante=256,
+    dimensao_da_mlp_final=64,
+    taxa_de_dropout=0.3,
+    quantidade_de_camadas_para_finetuning_efficientnet=15,
+    quantidade_de_camadas_para_finetuning_resnet=20,
+):
+    """
+    Constrói a arquitetura completa EFFResNet-ViT.
+    Retorna um tf.keras.Model ainda não compilado.
+    """
 
-# Visualizar a arquitetura
-model.summary()
+    # Passo 1: backbones convolucionais
+    camada_de_entrada, mapa_de_caracteristicas_efficientnet, mapa_de_caracteristicas_resnet = \
+        criar_backbones_cnn(
+            formato_da_entrada=formato_da_entrada,
+            quantidade_de_camadas_para_finetuning_efficientnet=quantidade_de_camadas_para_finetuning_efficientnet,
+            quantidade_de_camadas_para_finetuning_resnet=quantidade_de_camadas_para_finetuning_resnet,
+        )
 
-# Preparar os dados com o batch_size customizado
-print("Carregando datasets...")
-train_dataset = tf.keras.utils.image_dataset_from_directory(
-    TRAIN_DIR,
-    image_size=(IMG_SIZE, IMG_SIZE),
-    batch_size=NEW_BATCH_SIZE, # [ATUALIZADO]
-    label_mode='categorical'
-)
+    # Passo 2: fusão e convolução para embeddings de patches
+    mapa_de_caracteristicas_concatenado = layers.Concatenate(axis=-1, name="fusao_de_caracteristicas")(
+        [mapa_de_caracteristicas_efficientnet, mapa_de_caracteristicas_resnet]
+    )
 
-validation_dataset = tf.keras.utils.image_dataset_from_directory(
-    VALID_DIR,
-    image_size=(IMG_SIZE, IMG_SIZE),
-    batch_size=NEW_BATCH_SIZE, # [ATUALIZADO]
-    label_mode='categorical'
-)
+    mapa_de_caracteristicas_fundido = layers.Conv2D(
+        filters=256,
+        kernel_size=1,
+        padding="same",
+        activation="relu",
+        name="convolucao_de_fusao_de_caracteristicas"
+    )(mapa_de_caracteristicas_concatenado)
 
-# Definir Callbacks com a paciência customizada
-print("Configurando callbacks...")
-early_stopping = tf.keras.callbacks.EarlyStopping(
-    monitor="val_loss",
-    patience=NEW_PATIENCE, # [ATUALIZADO]
-    restore_best_weights=True
-)
-model_checkpoint = tf.keras.callbacks.ModelCheckpoint(
-    'effresnet_vit_best_model.h5',
-    monitor='val_loss',
-    save_best_only=True
-)
+    mapa_de_incorporacao_de_patches = layers.Conv2D(
+        filters=dimensao_de_incorporacao,
+        kernel_size=1,
+        padding="same",
+        activation=None,
+        name="convolucao_de_incorporacao_de_patches"
+    )(mapa_de_caracteristicas_fundido)
 
-# Treinar o modelo com as épocas customizadas
-print("Iniciando o treinamento...")
-history = model.fit(
-    train_dataset,
-    validation_data=validation_dataset,
-    epochs=NEW_EPOCHS, # [ATUALIZADO]
-    callbacks=[
-        early_stopping,
-        model_checkpoint
-    ]
-)
+    # Passo 3: transformar em sequência de patches usando dimensões estáticas
+    altura_estatica, largura_estatica = keras_backend.int_shape(mapa_de_incorporacao_de_patches)[1:3]
+    quantidade_de_patches = altura_estatica * largura_estatica
 
-print("Treinamento concluído. O melhor modelo foi salvo em 'effresnet_vit_best_model.h5'")
+    sequencia_de_patches = layers.Reshape(
+        target_shape=(quantidade_de_patches, dimensao_de_incorporacao),
+        name="remoldagem_para_sequencia_de_patches"
+    )(mapa_de_incorporacao_de_patches)
+
+    # Passo 4: codificador de patches (posição + projeção)
+    sequencia_codificada = CodificadorDePatches(
+        quantidade_de_patches=quantidade_de_patches,
+        dimensao_de_incorporacao=dimensao_de_incorporacao,
+        name="camada_codificadora_de_patches"
+    )(sequencia_de_patches)
+
+    # Passo 5: pilha de blocos transformer
+    sequencia_transformada = sequencia_codificada
+    for indice_do_bloco in range(quantidade_de_blocos_transformer):
+        sequencia_transformada = BlocoCodificadorTransformer(
+            dimensao_de_incorporacao=dimensao_de_incorporacao,
+            quantidade_de_cabecas_de_atencao=quantidade_de_cabecas_de_atencao,
+            dimensao_da_camada_alimentada_adiante=dimensao_da_camada_alimentada_adiante,
+            taxa_de_dropout=taxa_de_dropout,
+            name=f"bloco_transformer_{indice_do_bloco + 1}"
+        )(sequencia_transformada)
+
+    # Passo 6: voltar para mapa 2D
+    mapa_pos_transformer = layers.Reshape(
+        target_shape=(altura_estatica, largura_estatica, dimensao_de_incorporacao),
+        name="remoldagem_para_mapa_2d_pos_transformer"
+    )(sequencia_transformada)
+
+    mapa_pos_transformer = layers.Conv2D(
+        filters=64,
+        kernel_size=3,
+        padding="same",
+        activation="relu",
+        name="convolucao_pos_transformer"
+    )(mapa_pos_transformer)
+    mapa_pos_transformer = layers.BatchNormalization(name="normalizacao_pos_transformer")(mapa_pos_transformer)
+    mapa_pos_transformer = layers.ReLU(name="ativacao_pos_transformer")(mapa_pos_transformer)
+
+    # Passo 7: pooling global e cabeça de classificação
+    vetor_pooling = layers.GlobalAveragePooling2D(name="pooling_global_medio")(mapa_pos_transformer)
+
+    vetor_denso = layers.Dense(
+        units=dimensao_da_mlp_final,
+        activation="relu",
+        kernel_regularizer=l2(0.01),
+        name="camada_densa_final"
+    )(vetor_pooling)
+    vetor_denso = layers.Dropout(rate=taxa_de_dropout, name="dropout_final")(vetor_denso)
+
+    saida_de_classe = layers.Dense(
+        units=quantidade_de_classes,
+        activation="softmax",
+        name="saida_de_classificacao"
+    )(vetor_denso)
+
+    modelo = keras.Model(
+        inputs=camada_de_entrada,
+        outputs=saida_de_classe,
+        name="modelo_effresnet_vit"
+    )
+
+    return modelo
