@@ -1,0 +1,46 @@
+{
+  "training_directory": "dataset_custom_preprocessed/train",
+  "validation_directory": "dataset_custom_preprocessed/validation",
+
+  "image_size": 224,
+  "num_classes": 3,
+
+  "optimizer": {
+    "type": "Adam",
+    "learning_rate": 0.0005
+  },
+
+  "loss_function": "categorical_crossentropy",
+
+  "batch_size": {
+    "min": 16,
+    "max": 32
+  },
+
+  "epochs": 100,
+
+  "callbacks": {
+    "early_stopping": {
+      "monitor": "val_loss",
+      "patience": 50
+    }
+  },
+
+  "regularization": {
+    "dropout": 0.3
+  },
+
+  "training_type": "supervisionado",
+  "classification_type": "multiclasse",
+
+  "num_transformer_blocks": 4,
+  "hidden_dim": 128,
+  "num_heads": 4,
+  "feedforward_dim": 256,
+  "mlp_dim": 64,
+
+  "efficientnet_finetune_layers": 15,
+  "resnet_finetune_layers": 20,
+
+  "best_model_path": "melhor_modelo_effresnet_vit.h5"
+}
