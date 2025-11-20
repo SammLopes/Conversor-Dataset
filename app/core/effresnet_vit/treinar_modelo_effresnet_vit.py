@@ -116,9 +116,17 @@ def treinar_modelo_effresnet_vit(caminho_arquivo_configuracao):
         metrics=["accuracy"]
     )
 
-    print("--- Resumo da Arquitetura do Modelo ---")
-    modelo_effresnet_vit.summary()
-    print("---------------------------------------\n")
+    nome_do_arquivo_txt = "arquitetura_modelo.txt"
+        
+    with open(nome_do_arquivo_txt, "w") as arquivo:
+        
+        arquivo.write("--- Resumo da Arquitetura do Modelo ---\n")
+        modelo_effresnet_vit.summary(print_fn=lambda x: arquivo.write(x + '\n'))
+        
+        arquivo.write("---------------------------------------\n")
+
+    print(f"Resumo da arquitetura salvo com sucesso em: {nome_do_arquivo_txt}")
+    print("Iniciando treinamento")
 
     # Callbacks
     callback_de_parada_antecipada = keras.callbacks.EarlyStopping(
@@ -134,11 +142,28 @@ def treinar_modelo_effresnet_vit(caminho_arquivo_configuracao):
         save_weights_only=False
     )
 
+    print("--- INICIANDO TREINAMENTO ---")
+    
     historico = modelo_effresnet_vit.fit(
         conjunto_de_treinamento,
         validation_data=conjunto_de_validacao,
         epochs=quantidade_de_epocas,
         callbacks=[callback_de_parada_antecipada, callback_de_salvamento_do_melhor_modelo]
     )
+
+    # print("--- INICIANDO MODO DE TESTE RÁPIDO (Remova isso depois!) ---")
+
+    # historico = modelo_effresnet_vit.fit(
+    #     conjunto_de_treinamento,
+    #     validation_data=conjunto_de_validacao,
+        
+    #     # --- CONFIGURAÇÃO DE TESTE ---
+    #     epochs=1,              # <--- Garanta que esta é a ÚNICA linha 'epochs'
+    #     steps_per_epoch=2,     
+    #     validation_steps=2,    
+    #     # -----------------------------
+        
+    #     callbacks=[callback_de_parada_antecipada, callback_de_salvamento_do_melhor_modelo]
+    # )
 
     return modelo_effresnet_vit, historico
