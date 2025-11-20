@@ -9,6 +9,8 @@ yolov8-balanced-1/
 
 modelos
 
+arquitetura_modelo.txt
+
 yolov8/
 yolov8-copy-1/
 runs/
