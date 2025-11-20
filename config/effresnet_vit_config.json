@@ -42,5 +42,5 @@
   "efficientnet_finetune_layers": 15,
   "resnet_finetune_layers": 20,
 
-  "best_model_path": "melhor_modelo_effresnet_vit.h5"
+  "best_model_path": "modelos/effresnet_vit/melhor_modelo_effresnet_vit.keras"
 }
