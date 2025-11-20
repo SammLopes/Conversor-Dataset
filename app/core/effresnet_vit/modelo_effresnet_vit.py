@@ -8,8 +8,8 @@ from tensorflow.keras.regularizers import l2
 
 class CodificadorDePatches(layers.Layer):
     """
-    Camada que projeta patches em um espaço de dimensão maior e adiciona
-    incorporação posicional (similar ao Patch + Position Embedding do ViT).
+    Camada que projeta patches e soma a posição.
+    Usa layers.Add() para evitar erros de grafo no Keras 3.
     """
 
     def __init__(self, quantidade_de_patches, dimensao_de_incorporacao, **argumentos_adicionais):
@@ -20,8 +20,10 @@ class CodificadorDePatches(layers.Layer):
             input_dim=quantidade_de_patches,
             output_dim=dimensao_de_incorporacao
         )
+        # FIX: Camada de soma explícita
+        self.camada_soma = layers.Add()
 
-    def call(self, sequencia_de_patches):
+    def call(self, sequencia_de_patches, **kwargs):
         indices_de_posicao = tensorflow.range(
             start=0,
             limit=self.quantidade_de_patches,
@@ -29,7 +31,9 @@ class CodificadorDePatches(layers.Layer):
         )
         incorporacoes_posicionais = self.camada_de_incorporacao_posicional(indices_de_posicao)
         sequencia_projetada = self.camada_de_projecao(sequencia_de_patches)
-        return sequencia_projetada + incorporacoes_posicionais
+        
+        # FIX: Substituído o '+' por self.camada_soma([])
+        return self.camada_soma([sequencia_projetada, incorporacoes_posicionais])
 
     def get_config(self):
         configuracao_base = super().get_config()
@@ -44,7 +48,8 @@ class CodificadorDePatches(layers.Layer):
 
 class BlocoCodificadorTransformer(layers.Layer):
     """
-    Bloco transformer com atenção multi-cabeças + MLP, normalização e conexões residuais.
+    Bloco transformer.
+    Usa layers.Add() para as conexões residuais.
     """
 
     def __init__(
@@ -58,13 +63,19 @@ class BlocoCodificadorTransformer(layers.Layer):
         super().__init__(**argumentos_adicionais)
 
         self.camada_de_normalizacao_antes_da_atencao = layers.LayerNormalization(epsilon=1e-6)
+        
         self.camada_de_atencao_multi_cabecas = layers.MultiHeadAttention(
             num_heads=quantidade_de_cabecas_de_atencao,
             key_dim=dimensao_de_incorporacao,
             dropout=taxa_de_dropout
         )
+        
+        # FIX: Camadas de soma explícitas para os resíduos
+        self.camada_soma_atencao = layers.Add()
+        self.camada_soma_mlp = layers.Add()
 
         self.camada_de_normalizacao_antes_da_mlp = layers.LayerNormalization(epsilon=1e-6)
+        
         self.rede_alimentada_adiante = keras.Sequential(
             [
                 layers.Dense(units=dimensao_da_camada_alimentada_adiante, activation="gelu"),
@@ -74,26 +85,39 @@ class BlocoCodificadorTransformer(layers.Layer):
             ]
         )
 
-    def call(self, sequencia_de_entrada, treinamento=False):
+    def call(self, sequencia_de_entrada, training=False, **kwargs):
+        
+        # --- Parte 1: Atenção ---
         sequencia_normalizada_para_atencao = self.camada_de_normalizacao_antes_da_atencao(sequencia_de_entrada)
+        
         sequencia_apos_atencao = self.camada_de_atencao_multi_cabecas(
             sequencia_normalizada_para_atencao,
             sequencia_normalizada_para_atencao,
-            treinamento=treinamento
+            training=training 
         )
-        sequencia_apos_residual_de_atencao = sequencia_de_entrada + sequencia_apos_atencao
+        
+        # FIX: Substituído o '+' por self.camada_soma_atencao([])
+        sequencia_apos_residual_de_atencao = self.camada_soma_atencao(
+            [sequencia_de_entrada, sequencia_apos_atencao]
+        )
 
+        # --- Parte 2: MLP ---
         sequencia_normalizada_para_mlp = self.camada_de_normalizacao_antes_da_mlp(
             sequencia_apos_residual_de_atencao
         )
+        
         sequencia_apos_mlp = self.rede_alimentada_adiante(
             sequencia_normalizada_para_mlp,
-            training=treinamento
+            training=training
         )
-        sequencia_apos_residual_de_mlp = sequencia_apos_residual_de_atencao + sequencia_apos_mlp
+        
+        # FIX: Substituído o '+' por self.camada_soma_mlp([])
+        sequencia_apos_residual_de_mlp = self.camada_soma_mlp(
+            [sequencia_apos_residual_de_atencao, sequencia_apos_mlp]
+        )
 
         return sequencia_apos_residual_de_mlp
-
+    
     def get_config(self):
         configuracao_base = super().get_config()
         return configuracao_base
@@ -104,14 +128,6 @@ def criar_backbones_cnn(
     quantidade_de_camadas_para_finetuning_efficientnet=15,
     quantidade_de_camadas_para_finetuning_resnet=20
 ):
-    """
-    Cria os backbones EfficientNetB0 e ResNet50 com pesos ImageNet.
-    As primeiras camadas são congeladas; apenas as últimas N camadas
-    são liberadas para fine-tuning.
-
-    Retorna:
-        camada_de_entrada, mapa_de_caracteristicas_efficientnet, mapa_de_caracteristicas_resnet
-    """
     camada_de_entrada = layers.Input(shape=formato_da_entrada, name="entrada_imagem")
 
     # Backbone EfficientNet-B0
@@ -153,12 +169,7 @@ def criar_modelo_effresnet_vit(
     quantidade_de_camadas_para_finetuning_efficientnet=15,
     quantidade_de_camadas_para_finetuning_resnet=20,
 ):
-    """
-    Constrói a arquitetura completa EFFResNet-ViT.
-    Retorna um tf.keras.Model ainda não compilado.
-    """
-
-    # Passo 1: backbones convolucionais
+    # Passo 1
     camada_de_entrada, mapa_de_caracteristicas_efficientnet, mapa_de_caracteristicas_resnet = \
         criar_backbones_cnn(
             formato_da_entrada=formato_da_entrada,
@@ -166,7 +177,7 @@ def criar_modelo_effresnet_vit(
             quantidade_de_camadas_para_finetuning_resnet=quantidade_de_camadas_para_finetuning_resnet,
         )
 
-    # Passo 2: fusão e convolução para embeddings de patches
+    # Passo 2
     mapa_de_caracteristicas_concatenado = layers.Concatenate(axis=-1, name="fusao_de_caracteristicas")(
         [mapa_de_caracteristicas_efficientnet, mapa_de_caracteristicas_resnet]
     )
@@ -187,7 +198,7 @@ def criar_modelo_effresnet_vit(
         name="convolucao_de_incorporacao_de_patches"
     )(mapa_de_caracteristicas_fundido)
 
-    # Passo 3: transformar em sequência de patches usando dimensões estáticas
+    # Passo 3
     altura_estatica, largura_estatica = keras_backend.int_shape(mapa_de_incorporacao_de_patches)[1:3]
     quantidade_de_patches = altura_estatica * largura_estatica
 
@@ -196,14 +207,14 @@ def criar_modelo_effresnet_vit(
         name="remoldagem_para_sequencia_de_patches"
     )(mapa_de_incorporacao_de_patches)
 
-    # Passo 4: codificador de patches (posição + projeção)
+    # Passo 4
     sequencia_codificada = CodificadorDePatches(
         quantidade_de_patches=quantidade_de_patches,
         dimensao_de_incorporacao=dimensao_de_incorporacao,
         name="camada_codificadora_de_patches"
     )(sequencia_de_patches)
 
-    # Passo 5: pilha de blocos transformer
+    # Passo 5
     sequencia_transformada = sequencia_codificada
     for indice_do_bloco in range(quantidade_de_blocos_transformer):
         sequencia_transformada = BlocoCodificadorTransformer(
@@ -214,7 +225,7 @@ def criar_modelo_effresnet_vit(
             name=f"bloco_transformer_{indice_do_bloco + 1}"
         )(sequencia_transformada)
 
-    # Passo 6: voltar para mapa 2D
+    # Passo 6
     mapa_pos_transformer = layers.Reshape(
         target_shape=(altura_estatica, largura_estatica, dimensao_de_incorporacao),
         name="remoldagem_para_mapa_2d_pos_transformer"
@@ -230,7 +241,7 @@ def criar_modelo_effresnet_vit(
     mapa_pos_transformer = layers.BatchNormalization(name="normalizacao_pos_transformer")(mapa_pos_transformer)
     mapa_pos_transformer = layers.ReLU(name="ativacao_pos_transformer")(mapa_pos_transformer)
 
-    # Passo 7: pooling global e cabeça de classificação
+    # Passo 7
     vetor_pooling = layers.GlobalAveragePooling2D(name="pooling_global_medio")(mapa_pos_transformer)
 
     vetor_denso = layers.Dense(

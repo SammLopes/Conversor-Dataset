@@ -116,6 +116,10 @@ def treinar_modelo_effresnet_vit(caminho_arquivo_configuracao):
         metrics=["accuracy"]
     )
 
+    print("--- Resumo da Arquitetura do Modelo ---")
+    modelo_effresnet_vit.summary()
+    print("---------------------------------------\n")
+
     # Callbacks
     callback_de_parada_antecipada = keras.callbacks.EarlyStopping(
         monitor=parametro_de_monitoramento,
