@@ -8,8 +8,8 @@ from tensorflow.keras.regularizers import l2
 
 class CodificadorDePatches(layers.Layer):
     """
-    Camada que projeta patches e soma a posição.
-    Usa layers.Add() para evitar erros de grafo no Keras 3.
+    Camada que projeta patches em um espaço de dimensão maior e adiciona
+    incorporação posicional.
     """
 
     def __init__(self, quantidade_de_patches, dimensao_de_incorporacao, **argumentos_adicionais):
@@ -20,7 +20,6 @@ class CodificadorDePatches(layers.Layer):
             input_dim=quantidade_de_patches,
             output_dim=dimensao_de_incorporacao
         )
-        # FIX: Camada de soma explícita
         self.camada_soma = layers.Add()
 
     def call(self, sequencia_de_patches, **kwargs):
@@ -30,9 +29,14 @@ class CodificadorDePatches(layers.Layer):
             delta=1
         )
         incorporacoes_posicionais = self.camada_de_incorporacao_posicional(indices_de_posicao)
+        
+        # Transforma o shape de (49, 128) para (1, 49, 128).
+        # Isso permite que o Keras "estique" o 1 para o tamanho do lote (ex: 32).
+        target_shape = (1, self.quantidade_de_patches, self.camada_de_projecao.units)
+        incorporacoes_posicionais = tensorflow.reshape(incorporacoes_posicionais, target_shape)
+        
         sequencia_projetada = self.camada_de_projecao(sequencia_de_patches)
         
-        # FIX: Substituído o '+' por self.camada_soma([])
         return self.camada_soma([sequencia_projetada, incorporacoes_posicionais])
 
     def get_config(self):
@@ -45,11 +49,9 @@ class CodificadorDePatches(layers.Layer):
         )
         return configuracao_base
 
-
 class BlocoCodificadorTransformer(layers.Layer):
     """
-    Bloco transformer.
-    Usa layers.Add() para as conexões residuais.
+    Bloco transformer com atenção multi-cabeças + MLP, normalização e conexões residuais.
     """
 
     def __init__(
@@ -62,6 +64,14 @@ class BlocoCodificadorTransformer(layers.Layer):
     ):
         super().__init__(**argumentos_adicionais)
 
+        # --- CORREÇÃO: SALVAR OS PARÂMETROS NO SELF ---
+        # Sem isso, o get_config() falha na hora de salvar o modelo
+        self.dimensao_de_incorporacao = dimensao_de_incorporacao
+        self.quantidade_de_cabecas_de_atencao = quantidade_de_cabecas_de_atencao
+        self.dimensao_da_camada_alimentada_adiante = dimensao_da_camada_alimentada_adiante
+        self.taxa_de_dropout = taxa_de_dropout
+        # ----------------------------------------------
+
         self.camada_de_normalizacao_antes_da_atencao = layers.LayerNormalization(epsilon=1e-6)
         
         self.camada_de_atencao_multi_cabecas = layers.MultiHeadAttention(
@@ -70,7 +80,6 @@ class BlocoCodificadorTransformer(layers.Layer):
             dropout=taxa_de_dropout
         )
         
-        # FIX: Camadas de soma explícitas para os resíduos
         self.camada_soma_atencao = layers.Add()
         self.camada_soma_mlp = layers.Add()
 
@@ -85,9 +94,8 @@ class BlocoCodificadorTransformer(layers.Layer):
             ]
         )
 
-    def call(self, sequencia_de_entrada, training=False, **kwargs):
+    def call(self, sequencia_de_entrada, training=False, mask=None, **kwargs):
         
-        # --- Parte 1: Atenção ---
         sequencia_normalizada_para_atencao = self.camada_de_normalizacao_antes_da_atencao(sequencia_de_entrada)
         
         sequencia_apos_atencao = self.camada_de_atencao_multi_cabecas(
@@ -96,12 +104,10 @@ class BlocoCodificadorTransformer(layers.Layer):
             training=training 
         )
         
-        # FIX: Substituído o '+' por self.camada_soma_atencao([])
         sequencia_apos_residual_de_atencao = self.camada_soma_atencao(
             [sequencia_de_entrada, sequencia_apos_atencao]
         )
 
-        # --- Parte 2: MLP ---
         sequencia_normalizada_para_mlp = self.camada_de_normalizacao_antes_da_mlp(
             sequencia_apos_residual_de_atencao
         )
@@ -111,7 +117,6 @@ class BlocoCodificadorTransformer(layers.Layer):
             training=training
         )
         
-        # FIX: Substituído o '+' por self.camada_soma_mlp([])
         sequencia_apos_residual_de_mlp = self.camada_soma_mlp(
             [sequencia_apos_residual_de_atencao, sequencia_apos_mlp]
         )
@@ -120,6 +125,13 @@ class BlocoCodificadorTransformer(layers.Layer):
     
     def get_config(self):
         configuracao_base = super().get_config()
+        # Agora o self.dimensao_de_incorporacao existe!
+        configuracao_base.update({
+            "dimensao_de_incorporacao": self.dimensao_de_incorporacao,
+            "quantidade_de_cabecas_de_atencao": self.quantidade_de_cabecas_de_atencao,
+            "dimensao_da_camada_alimentada_adiante": self.dimensao_da_camada_alimentada_adiante,
+            "taxa_de_dropout": self.taxa_de_dropout,
+        })
         return configuracao_base
 
 
@@ -128,6 +140,10 @@ def criar_backbones_cnn(
     quantidade_de_camadas_para_finetuning_efficientnet=15,
     quantidade_de_camadas_para_finetuning_resnet=20
 ):
+    """
+    Cria os backbones compartilhando explicitamente o tensor de entrada.
+    (SUA CORREÇÃO APLICADA AQUI)
+    """
     camada_de_entrada = layers.Input(shape=formato_da_entrada, name="entrada_imagem")
 
     # Backbone EfficientNet-B0
@@ -142,11 +158,11 @@ def criar_backbones_cnn(
             camada.trainable = False
     saida_efficientnet = modelo_base_efficientnet.get_layer("block7a_project_conv").output
 
-    # Backbone ResNet-50
+    # Backbone ResNet-50 (Agora usando input_tensor corretamente como você sugeriu)
     modelo_base_resnet = ResNet50(
         include_top=False,
         weights="imagenet",
-        input_shape=formato_da_entrada
+        input_tensor=camada_de_entrada  # <-- SUA CORREÇÃO
     )
     modelo_base_resnet.trainable = True
     if quantidade_de_camadas_para_finetuning_resnet > 0:
@@ -169,6 +185,10 @@ def criar_modelo_effresnet_vit(
     quantidade_de_camadas_para_finetuning_efficientnet=15,
     quantidade_de_camadas_para_finetuning_resnet=20,
 ):
+    """
+    Constrói a arquitetura completa EFFResNet-ViT.
+    """
+
     # Passo 1
     camada_de_entrada, mapa_de_caracteristicas_efficientnet, mapa_de_caracteristicas_resnet = \
         criar_backbones_cnn(
