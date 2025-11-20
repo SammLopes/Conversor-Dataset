@@ -286,16 +286,14 @@ Execute os comandos a partir da pasta onde está o arquivo `effresnet_vit.py`.
 ### 1.1. Treinar o modelo
 
 ```bash
-python effresnet_vit.py treinar --config config/effresnet_vit_config.json
+python -m app.effresnet_vit treinar --config config/effresnet_vit_config.json
 ```
 
 ### 1.2 Avaliar o Modelo
 ```bash 
-python effresnet_vit.py avaliar \
-  --modelo melhor_modelo_effresnet_vit.h5 \
-  --validacao dataset_custom_preprocessed/validation \
-  --tamanho_imagem 224 \
-  --tamanho_lote 32
+python -m effresnet_vit avaliar \
+  --modelo modelos//melhor_modelo_effresnet_vit.h5 \
+  --validacao dataset_custom_preprocessed/validation 
 ```
 
 ## Configuração do Ambiente e Instalação
