@@ -136,48 +136,50 @@ class BlocoCodificadorTransformer(layers.Layer):
 
 
 def criar_backbones_cnn(
-    formato_da_entrada=(224, 224, 3),
-    quantidade_de_camadas_para_finetuning_efficientnet=15,
-    quantidade_de_camadas_para_finetuning_resnet=20
+    formato_da_entrada=(224, 224, 1), # Agora pode ser 1 nativo
+    # Estes argumentos não serão usados, mas mantemos pela assinatura
+    quantidade_de_camadas_para_finetuning_efficientnet=0,
+    quantidade_de_camadas_para_finetuning_resnet=0
 ):
     """
-    Cria os backbones compartilhando explicitamente o tensor de entrada.
-    (SUA CORREÇÃO APLICADA AQUI)
+    Cria os backbones EfficientNetB0 e ResNet50 DO ZERO (weights=None).
+    Isso permite input nativo de 1 canal.
+    NOTA: Todas as camadas são treináveis, pois não há pesos pré-treinados.
     """
-    
-    camada_de_entrada = layers.Input(shape=formato_da_entrada, name="entrada_imagem")
-    
-    if formato_da_entrada[-1] == 1:
-        camada_de_entrada_para_backbones = layers.Concatenate(axis=-1, name="repeticao_de_canais_para_rgb")(
-            [camada_de_entrada, camada_de_entrada, camada_de_entrada]
-        )
-    else:
-        camada_de_entrada_para_backbones = camada_de_entrada
 
+    # 1. Camada de Entrada (Aceita 1 canal direto)
+    camada_de_entrada = layers.Input(
+        shape=formato_da_entrada,
+        name="entrada_imagem"
+    )
 
-    # Backbone EfficientNet-B0
+    # 2. Backbone EfficientNet-B0 (Pesos Aleatórios)
     modelo_base_efficientnet = EfficientNetB0(
         include_top=False,
-        weights="imagenet",
-        input_tensor=camada_de_entrada_para_backbones
+        weights=None,  # <--- Inicialização aleatória
+        input_tensor=camada_de_entrada
     )
-    modelo_base_efficientnet.trainable = True
-    if quantidade_de_camadas_para_finetuning_efficientnet > 0:
-        for camada in modelo_base_efficientnet.layers[:-quantidade_de_camadas_para_finetuning_efficientnet]:
-            camada.trainable = False
-    saida_efficientnet = modelo_base_efficientnet.get_layer("block7a_project_conv").output
+    # IMPORTANTE: Tudo deve ser treinável
+    modelo_base_efficientnet.trainable = True 
+    # (Removido o loop de congelamento aqui)
 
-    # Backbone ResNet-50 (Agora usando input_tensor corretamente como você sugeriu)
+    saida_efficientnet = modelo_base_efficientnet.get_layer(
+        "block7a_project_conv"
+    ).output
+
+    # 3. Backbone ResNet-50 (Pesos Aleatórios)
     modelo_base_resnet = ResNet50(
         include_top=False,
-        weights="imagenet",
-        input_tensor=camada_de_entrada  # <-- SUA CORREÇÃO
+        weights=None, # <--- Inicialização aleatória
+        input_tensor=camada_de_entrada
     )
+    # IMPORTANTE: Tudo deve ser treinável
     modelo_base_resnet.trainable = True
-    if quantidade_de_camadas_para_finetuning_resnet > 0:
-        for camada in modelo_base_resnet.layers[:-quantidade_de_camadas_para_finetuning_resnet]:
-            camada.trainable = False
-    saida_resnet = modelo_base_resnet.get_layer("conv5_block3_out").output
+    # (Removido o loop de congelamento aqui)
+
+    saida_resnet = modelo_base_resnet.get_layer(
+        "conv5_block3_out"
+    ).output
 
     return camada_de_entrada, saida_efficientnet, saida_resnet
 

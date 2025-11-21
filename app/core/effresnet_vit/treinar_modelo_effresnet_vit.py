@@ -19,7 +19,7 @@ def carregar_conjunto_de_dados_de_imagens(
         batch_size=tamanho_do_lote,
         image_size=(tamanho_da_imagem, tamanho_da_imagem),
         shuffle=embaralhar,
-        color_mode="rgb"
+        color_mode="grayscale"
     )
     conjunto_de_dados = conjunto_de_dados.prefetch(buffer_size=tensorflow.data.AUTOTUNE)
     return conjunto_de_dados
@@ -93,7 +93,7 @@ def treinar_modelo_effresnet_vit(caminho_arquivo_configuracao):
 
     # Construir modelo
     modelo_effresnet_vit = criar_modelo_effresnet_vit(
-        formato_da_entrada=(tamanho_da_imagem, tamanho_da_imagem, 3),
+        formato_da_entrada=(tamanho_da_imagem, tamanho_da_imagem, 1),
         quantidade_de_classes=quantidade_de_classes,
         quantidade_de_blocos_transformer=dicionario_de_configuracao.get("num_transformer_blocks", 4),
         dimensao_de_incorporacao=dicionario_de_configuracao.get("hidden_dim", 128),
