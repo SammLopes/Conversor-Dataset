@@ -8,7 +8,7 @@ from tqdm import tqdm
 # Adiciona o diretório raiz do projeto ao path para permitir a importação do pacote 'app'
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
 
-from app.core.sdac_avc.treino_sdac_avc import train_sdavc_kfold
+from app.core.sdac_avc.treino_sdac_avc import train_sdavc_kfold, train_sdavc_simple
 from app.core.sdac_avc.avaliador_sdavc import avaliar_sdavc_model
 
 from app.core.preprocessamento import carregar_dataset_preprocessado, carregar_split_preprocessado
@@ -27,8 +27,43 @@ def main():
 
     # --- Sub-comando para Treinamento ---
     parser_train = subparsers.add_parser("train", help="Executa o treinamento k-fold do modelo.")
-    parser_train.add_argument("--data-dir", type=str, required=True, help="Caminho para o diretório raiz do dataset pré-processado (com subpastas train/valid).")
-    parser_train.add_argument("--save-dir", type=str, default="modelos/sdavc", help="Diretório para salvar os modelos treinados.")
+    parser_train.add_argument(
+        "--data-dir",
+        type=str,
+        required=True,
+        help="Caminho para o diretório raiz do dataset pré-processado."
+    )
+    parser_train.add_argument(
+        "--save-dir",
+        type=str,
+        default="modelos/sdavc",
+        help="Diretório para salvar os modelos treinados."
+    )
+    parser_train.add_argument(
+        "--mode",
+        type=str,
+        choices=["kfold", "simple"],
+        default="kfold",
+        help="Modo de treinamento: 'kfold' (padrão) ou 'simple' (treino/validacao único)."
+    )
+    parser_train.add_argument(
+        "--val-split",
+        type=float,
+        default=0.2,
+        help="Fraçao de validacao usada no modo 'simple' (padrão: 0.2 = 20%%)."
+    )
+    parser_train.add_argument(
+        "--epochs",
+        type=int,
+        default=100,
+        help="Quantidade máxima de épocas para o treinamento."
+    )
+    parser_train.add_argument(
+        "--batch-size",
+        type=int,
+        default=32,
+        help="Tamanho do lote (batch size)."
+    )
     
     # --- Sub-comando para Avaliação ---
     parser_evaluate = subparsers.add_parser("evaluate", help="Avalia os modelos treinados em um dataset.")
@@ -50,69 +85,85 @@ def main():
 
     # --- LÓGICA DE COMANDO ATUALIZADA ---
     # A lógica de carregamento de dados foi movida para DENTRO de cada 'if'
-    
     if args.command == "train":
-        print("\nIniciando o Treinamento K-Fold...")
-        # Carrega o dataset de TREINO (que contém subpastas train/valid)
-        
-        print(" Teste train ")
-        exit()
-        X, y = carregar_dataset_preprocessado(args.data_dir)
-        if X.size == 0:
-             print("❌ Erro fatal: O dataset de treino está vazio. Verifique o caminho e a estrutura.")
-             return
-        train_sdavc_kfold(X, y, save_dir=args.save_dir)
-        
+        print("\nIniciando o Treinamento do Modelo SDAVC...")
+
+        matriz_de_imagens, vetor_de_rotulos = carregar_dataset_preprocessado(args.data_dir)
+        if matriz_de_imagens.size == 0:
+            print("❌ Erro fatal: O dataset de treino está vazio. Verifique o caminho e a estrutura.")
+            return
+
+        if args.mode == "kfold":
+            print("Modo de treinamento selecionado: K-Fold")
+            train_sdavc_kfold(
+                matriz_de_imagens,
+                vetor_de_rotulos,
+                save_dir=args.save_dir,
+                n_splits=5,
+                epochs=args.epochs,
+                batch_size=args.batch_size,
+                is_include=True,
+            )
+        else:
+            print("Modo de treinamento selecionado: Simples (train/valid)")
+            train_sdavc_simple(
+                matriz_de_imagens,
+                vetor_de_rotulos,
+                diretorio_de_saida=args.save_dir,
+                quantidade_de_epocas=args.epochs,
+                tamanho_do_lote=args.batch_size,
+                fracao_de_validacao=args.val_split,
+                incluir_otimizador=True,
+            )
+            
     elif args.command == "evaluate":
         print("\nIniciando a Avaliação do Modelo...")
-        # Carrega o dataset de AVALIAÇÃO (ex: a pasta 'valid' ou 'test' direto)
-        
-        print(" Teste evaluate ")
-        exit()
-        X, y = carregar_split_preprocessado(args.data_dir)
-        if X.size == 0:
-             print("❌ Erro fatal: O dataset de avaliação está vazio. Verifique o caminho.")
-             return
-        avaliar_sdavc_model(X, y, model_dir=args.model_dir, output_dir=args.output_dir)
+
+        matriz_de_imagens_de_avaliacao, vetor_de_rotulos_de_avaliacao = carregar_split_preprocessado(args.data_dir)
+        if matriz_de_imagens_de_avaliacao.size == 0:
+            print("❌ Erro fatal: O dataset de avaliação está vazio. Verifique o caminho.")
+            return
+
+        avaliar_sdavc_model(
+            matriz_de_imagens_de_avaliacao,
+            vetor_de_rotulos_de_avaliacao,
+            model_dir=args.model_dir,
+            output_dir=args.output_dir,
+        )
     
     elif args.command == "predict":
 
-        print(" Teste Predict ")
-        exit()
-        
         print(f"\nIniciando Predição da Imagem: {args.image}")
-        
-        # 1. Carrega e prepara a imagem
-        image_array = load_and_preprocess_image(args.image)
-        if image_array is None:
-            return # Erro já foi impresso
 
-        final_probabilities = None
-        
-        # 2. Decide qual modo de predição usar
+        matriz_da_imagem = load_and_preprocess_image(args.image)
+        if matriz_da_imagem is None:
+            # A função de carregamento já imprime a mensagem de erro
+            return
+
+        probabilidades_finais = None
+
         if args.model:
-            # Modo "Bom": Modelo Único
-            final_probabilities = predict_single_model(args.model, image_array)
-            
-        elif args.model_dir:
-            # Modo "Excelente": Ensemble
-            final_probabilities = predict_ensemble(args.model_dir, image_array)
+            # Usa um único modelo (.keras)
+            probabilidades_finais = predict_single_model(args.model, matriz_da_imagem)
 
-        # 3. Mostra o resultado final
-        if final_probabilities is not None:
+        elif args.model_dir:
+            # Usa ensemble com todos os folds dentro do diretório
+            probabilidades_finais = predict_ensemble(args.model_dir, matriz_da_imagem)
+
+        if probabilidades_finais is not None:
             print("\n--- Resultado Final ---")
-            
-            predicted_class_index = np.argmax(final_probabilities)
-            confidence = final_probabilities[predicted_class_index]
-            predicted_class_name = CLASSES.get(predicted_class_index, "Classe Desconhecida")
-            
-            print(f"Classe Prevista: {predicted_class_name}")
-            print(f"Confiança: {confidence:.2%}")
-            
+
+            indice_da_classe_prevista = np.argmax(probabilidades_finais)
+            confianca = probabilidades_finais[indice_da_classe_prevista]
+            nome_da_classe_prevista = CLASSES.get(indice_da_classe_prevista, "Classe Desconhecida")
+
+            print(f"Classe Prevista: {nome_da_classe_prevista}")
+            print(f"Confiança: {confianca:.2%}")
+
             print("\nProbabilidades por Classe:")
-            for i, prob in enumerate(final_probabilities):
-                class_name = CLASSES.get(i, f"Classe {i}")
-                print(f"  {class_name}: {prob:.2%}")
+            for indice_da_classe, probabilidade in enumerate(probabilidades_finais):
+                nome_da_classe = CLASSES.get(indice_da_classe, f"Classe {indice_da_classe}")
+                print(f"  {nome_da_classe}: {probabilidade:.2%}")
         else:
             print("❌ Erro: A predição falhou.")
 
