@@ -186,7 +186,7 @@ python -m app.yolo validate --model "./data/results/yolo_avc_v8m_detect3/weights
 >2 Uso
 - Use o comando ```train``` e forneça o caminho do diretório para o dataset se treino, nesse trabalho o nome do diretório é ```dataset_custom_preprocessed```, pode mudar o lugar a medida que seja necessário.
 ```bash
-python -m app.sdac_avc.py train --data_dir /caminho/para/seu_dataset
+python -m app.sdac_avc train --data_dir /caminho/para/seu_dataset
 ```
 Os modelos (```.keras```) serão salvos no diretório ```modelos/sdavc/```.
 
@@ -194,7 +194,7 @@ Os modelos (```.keras```) serão salvos no diretório ```modelos/sdavc/```.
 - Use o comando ```evaluate``` e aponte para o diretório do dataset que deseja usar para a avaliação (pode ser o mesmo do treino ou um de teste separado com a mesma estrutura).
 
 ```bash
-python -m app.sdac_avc.py evaluate --data-dir /caminho/para/seu_dataset_de_teste
+python -m app.sdac_avc evaluate --data-dir /caminho/para/seu_dataset_de_teste
 ```
 >4 Predição do Modelo
 - Este script foi projetado para carregar os modelos .keras que você treinou e usá-los para classificar uma única imagem.
