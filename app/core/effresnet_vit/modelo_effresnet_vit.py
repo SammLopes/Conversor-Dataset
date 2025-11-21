@@ -144,13 +144,21 @@ def criar_backbones_cnn(
     Cria os backbones compartilhando explicitamente o tensor de entrada.
     (SUA CORREÇÃO APLICADA AQUI)
     """
+    
+    if formato_da_entrada[-1] == 1:
+        camada_de_entrada_para_backbones = layers.Concatenate(axis=-1, name="repeticao_de_canais_para_rgb")(
+            [camada_de_entrada, camada_de_entrada, camada_de_entrada]
+        )
+    else:
+        camada_de_entrada_para_backbones = camada_de_entrada
+
     camada_de_entrada = layers.Input(shape=formato_da_entrada, name="entrada_imagem")
 
     # Backbone EfficientNet-B0
     modelo_base_efficientnet = EfficientNetB0(
         include_top=False,
         weights="imagenet",
-        input_tensor=camada_de_entrada
+        input_tensor=camada_de_entrada_para_backbones
     )
     modelo_base_efficientnet.trainable = True
     if quantidade_de_camadas_para_finetuning_efficientnet > 0:
