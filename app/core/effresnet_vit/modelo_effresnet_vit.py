@@ -145,6 +145,8 @@ def criar_backbones_cnn(
     (SUA CORREÇÃO APLICADA AQUI)
     """
     
+    camada_de_entrada = layers.Input(shape=formato_da_entrada, name="entrada_imagem")
+    
     if formato_da_entrada[-1] == 1:
         camada_de_entrada_para_backbones = layers.Concatenate(axis=-1, name="repeticao_de_canais_para_rgb")(
             [camada_de_entrada, camada_de_entrada, camada_de_entrada]
@@ -152,7 +154,6 @@ def criar_backbones_cnn(
     else:
         camada_de_entrada_para_backbones = camada_de_entrada
 
-    camada_de_entrada = layers.Input(shape=formato_da_entrada, name="entrada_imagem")
 
     # Backbone EfficientNet-B0
     modelo_base_efficientnet = EfficientNetB0(
