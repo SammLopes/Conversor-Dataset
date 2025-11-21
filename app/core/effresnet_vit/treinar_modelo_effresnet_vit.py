@@ -18,7 +18,8 @@ def carregar_conjunto_de_dados_de_imagens(
         label_mode=modo_de_rotulo,
         batch_size=tamanho_do_lote,
         image_size=(tamanho_da_imagem, tamanho_da_imagem),
-        shuffle=embaralhar
+        shuffle=embaralhar,
+        color_mode="rgb"
     )
     conjunto_de_dados = conjunto_de_dados.prefetch(buffer_size=tensorflow.data.AUTOTUNE)
     return conjunto_de_dados
