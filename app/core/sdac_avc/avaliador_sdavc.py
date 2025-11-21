@@ -212,3 +212,26 @@ def avaliar_sdavc_model(X, y, model_dir="modelos/sdavc", output_dir='avaliacoes'
     print(f"   -> CSV Individual: {path_csv_folds}")
     print(f"   -> CSV Ensemble: {path_csv_ensemble}")
     print(f"   -> TXT Completo: {path_txt}")
+
+def avaliar_modelo_simples(X, y, model_path, output_dir="avaliacoes"):
+    print(f"🔍 Avaliando modelo único: {model_path}")
+    os.makedirs(output_dir, exist_ok=True)
+
+    model = load_model(model_path)
+    y_pred_probs = model.predict(X)
+    y_pred = np.argmax(y_pred_probs, axis=1)
+
+    report = classification_report(y, y_pred, target_names=[str(i) for i in np.unique(y)], digits=4)
+    matriz = confusion_matrix(y, y_pred)
+
+    print("\n📊 Classification Report:")
+    print(report)
+    print("\n🧩 Matriz de Confusão:")
+    print(matriz)
+
+    # Salva relatório em arquivo
+    with open(os.path.join(output_dir, "avaliacao_modelo_unico.txt"), "w") as f:
+        f.write("Classification Report\n")
+        f.write(report)
+        f.write("\nConfusion Matrix\n")
+        f.write(np.array2string(matriz))
