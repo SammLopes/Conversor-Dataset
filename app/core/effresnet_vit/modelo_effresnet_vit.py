@@ -136,125 +136,50 @@ class BlocoCodificadorTransformer(layers.Layer):
 
 
 def criar_backbones_cnn(
-    formato_da_entrada=(224, 224, 3),
-    quantidade_de_camadas_para_finetuning_efficientnet=15,
-    quantidade_de_camadas_para_finetuning_resnet=20
+    formato_da_entrada=(224, 224, 1), # Agora pode ser 1 nativo
+    # Estes argumentos não serão usados, mas mantemos pela assinatura
+    quantidade_de_camadas_para_finetuning_efficientnet=0,
+    quantidade_de_camadas_para_finetuning_resnet=0
 ):
     """
-    Cria os backbones compartilhando explicitamente o tensor de entrada.
-    (SUA CORREÇÃO APLICADA AQUI)
+    Cria os backbones EfficientNetB0 e ResNet50 DO ZERO (weights=None).
+    Isso permite input nativo de 1 canal.
+    NOTA: Todas as camadas são treináveis, pois não há pesos pré-treinados.
     """
-    
-    # # 1. Cria a camada de entrada original (pode ser 1 ou 3 canais)
-    # camada_de_entrada = layers.Input(shape=formato_da_entrada, name="entrada_imagem")
 
-    # # 2. Lógica de projeção para garantir 3 canais (RGB)
-    # if formato_da_entrada[-1] == 1:
-    #     # Se for 1 canal, projeta para 3
-    #     camada_de_entrada_para_backbones = layers.Conv2D(
-    #         filters=3,
-    #         kernel_size=1,
-    #         padding="same",
-    #         activation=None,
-    #         name="projecao_de_canais_para_rgb"
-    #     )(camada_de_entrada)
-    # else:
-    #     # Se já for 3 canais, usa direto
-    #     camada_de_entrada_para_backbones = camada_de_entrada
-
-    # # --- CORREÇÃO CRUCIAL AQUI ---
-    # # Forçamos o shape de configuração ser SEMPRE 3 canais para o ImageNet
-    # # ignorando se o original era 1.
-    # altura = formato_da_entrada[0]
-    # largura = formato_da_entrada[1]
-    # formato_shape_rgb = (altura, largura, 3) 
-    # # -----------------------------
-
-    # # Backbone EfficientNet-B0
-    # modelo_base_efficientnet = EfficientNetB0(
-    #     include_top=False,
-    #     weights="imagenet",
-    #     input_tensor=camada_de_entrada_para_backbones,
-    #     input_shape=formato_shape_rgb  # <--- Força (224, 224, 3)
-    # )
-    # modelo_base_efficientnet.trainable = True
-    # if quantidade_de_camadas_para_finetuning_efficientnet > 0:
-    #     for camada in modelo_base_efficientnet.layers[:-quantidade_de_camadas_para_finetuning_efficientnet]:
-    #         camada.trainable = False
-    # saida_efficientnet = modelo_base_efficientnet.get_layer("block7a_project_conv").output
-
-    # # Backbone ResNet-50 (Agora usando input_tensor corretamente como você sugeriu)
-    # modelo_base_resnet = ResNet50(
-    #     include_top=False,
-    #     weights="imagenet",
-    #     input_tensor=camada_de_entrada  # <-- SUA CORREÇÃO
-    # )
-    # modelo_base_resnet.trainable = True
-    # if quantidade_de_camadas_para_finetuning_resnet > 0:
-    #     for camada in modelo_base_resnet.layers[:-quantidade_de_camadas_para_finetuning_resnet]:
-    #         camada.trainable = False
-    # saida_resnet = modelo_base_resnet.get_layer("conv5_block3_out").output
-    
-    # 1. Entrada Real do Modelo (Pode ser 1 ou 3 canais)
-    camada_de_entrada = layers.Input(shape=formato_da_entrada, name="entrada_imagem")
-
-    # 2. Adaptador para RGB (Se for 1 canal, converte para 3)
-    if formato_da_entrada[-1] == 1:
-        # Opção Segura: Repetir o canal (R=G=B)
-        # Isso é melhor que Conv2D para iniciar com pesos ImageNet
-        camada_rgb = layers.Concatenate(axis=-1, name="adaptador_rgb")([camada_de_entrada, camada_de_entrada, camada_de_entrada])
-    else:
-        camada_rgb = camada_de_entrada
-
-    # 3. Criar Backbones "Virgens" (Sem Input Tensor)
-    # Forçamos eles a serem criados esperando (224, 224, 3)
-    shape_rgb_fixo = (formato_da_entrada[0], formato_da_entrada[1], 3)
-
-    backbone_effnet = EfficientNetB0(
-        include_top=False,
-        weights="imagenet",
-        input_shape=shape_rgb_fixo  # Força RGB puro
-        # NÃO passamos input_tensor aqui!
-    )
-    
-    backbone_resnet = ResNet50(
-        include_top=False,
-        weights="imagenet",
-        input_shape=shape_rgb_fixo # Força RGB puro
+    # 1. Camada de Entrada (Aceita 1 canal direto)
+    camada_de_entrada = layers.Input(
+        shape=formato_da_entrada,
+        name="entrada_imagem"
     )
 
-    # 4. Aplicar Fine-Tuning (Congelar camadas)
-    backbone_effnet.trainable = True
-    if quantidade_de_camadas_para_finetuning_efficientnet > 0:
-        for layer in backbone_effnet.layers[:-quantidade_de_camadas_para_finetuning_efficientnet]:
-            layer.trainable = False
-            
-    backbone_resnet.trainable = True
-    if quantidade_de_camadas_para_finetuning_resnet > 0:
-        for layer in backbone_resnet.layers[:-quantidade_de_camadas_para_finetuning_resnet]:
-            layer.trainable = False
+    # 2. Backbone EfficientNet-B0 (Pesos Aleatórios)
+    modelo_base_efficientnet = EfficientNetB0(
+        include_top=False,
+        weights=None,  # <--- Inicialização aleatória
+        input_tensor=camada_de_entrada
+    )
+    # IMPORTANTE: Tudo deve ser treinável
+    modelo_base_efficientnet.trainable = True 
+    # (Removido o loop de congelamento aqui)
 
-    # 5. Conectar o Tensor RGB aos Modelos
-    # Agora sim, passamos nosso tensor convertido pelos modelos
-    saida_efficientnet = backbone_effnet(camada_rgb)
-    saida_resnet = backbone_resnet(camada_rgb)
+    saida_efficientnet = modelo_base_efficientnet.get_layer(
+        "block7a_project_conv"
+    ).output
 
-    # Opcional: Se precisar pegar uma camada específica interna (como no código original),
-    # precisamos construir um "Model" intermediário ou usar a saída direta.
-    # O EfficientNetB0(include_top=False) já retorna a última conv, que é o que queremos.
-    # O ResNet50 também.
-    # Mas para garantir compatibilidade com seu código original que busca camadas específicas:
-    
-    # NOTA: Ao chamar o modelo como função, perdemos acesso direto a camadas internas pelo nome.
-    # Se o objetivo é pegar a ÚLTIMA camada de features (o padrão de include_top=False),
-    # 'saida_efficientnet' e 'saida_resnet' JÁ SÃO essas features.
-    
-    # Se o artigo exigia camadas intermediárias específicas ("block7a_project_conv"),
-    # então precisamos fazer diferente. Mas o padrão "top_conv" costuma ser suficiente.
-    
-    # Vamos assumir que a saída padrão de include_top=False é o que você quer 
-    # (que geralmente é o output da última conv).
+    # 3. Backbone ResNet-50 (Pesos Aleatórios)
+    modelo_base_resnet = ResNet50(
+        include_top=False,
+        weights=None, # <--- Inicialização aleatória
+        input_tensor=camada_de_entrada
+    )
+    # IMPORTANTE: Tudo deve ser treinável
+    modelo_base_resnet.trainable = True
+    # (Removido o loop de congelamento aqui)
 
+    saida_resnet = modelo_base_resnet.get_layer(
+        "conv5_block3_out"
+    ).output
 
     return camada_de_entrada, saida_efficientnet, saida_resnet
 
