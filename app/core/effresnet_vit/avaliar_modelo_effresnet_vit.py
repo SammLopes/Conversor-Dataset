@@ -54,7 +54,8 @@ def avaliar_modelo_effresnet_vit(
         label_mode="int",
         batch_size=tamanho_do_lote,
         image_size=(tamanho_da_imagem, tamanho_da_imagem),
-        shuffle=False
+        shuffle=False,
+        color_mode="grayscale"
     )
     conjunto_de_validacao = conjunto_de_validacao.prefetch(buffer_size=tensorflow.data.AUTOTUNE)
 
