@@ -145,21 +145,37 @@ def criar_backbones_cnn(
     (SUA CORREÇÃO APLICADA AQUI)
     """
     
+    # 1. Cria a camada de entrada original (pode ser 1 ou 3 canais)
     camada_de_entrada = layers.Input(shape=formato_da_entrada, name="entrada_imagem")
-    
+
+    # 2. Lógica de projeção para garantir 3 canais (RGB)
     if formato_da_entrada[-1] == 1:
-        camada_de_entrada_para_backbones = layers.Concatenate(axis=-1, name="repeticao_de_canais_para_rgb")(
-            [camada_de_entrada, camada_de_entrada, camada_de_entrada]
-        )
+        # Se for 1 canal, projeta para 3
+        camada_de_entrada_para_backbones = layers.Conv2D(
+            filters=3,
+            kernel_size=1,
+            padding="same",
+            activation=None,
+            name="projecao_de_canais_para_rgb"
+        )(camada_de_entrada)
     else:
+        # Se já for 3 canais, usa direto
         camada_de_entrada_para_backbones = camada_de_entrada
 
+    # --- CORREÇÃO CRUCIAL AQUI ---
+    # Forçamos o shape de configuração ser SEMPRE 3 canais para o ImageNet
+    # ignorando se o original era 1.
+    altura = formato_da_entrada[0]
+    largura = formato_da_entrada[1]
+    formato_shape_rgb = (altura, largura, 3) 
+    # -----------------------------
 
     # Backbone EfficientNet-B0
     modelo_base_efficientnet = EfficientNetB0(
         include_top=False,
         weights="imagenet",
-        input_tensor=camada_de_entrada_para_backbones
+        input_tensor=camada_de_entrada_para_backbones,
+        input_shape=formato_shape_rgb  # <--- Força (224, 224, 3)
     )
     modelo_base_efficientnet.trainable = True
     if quantidade_de_camadas_para_finetuning_efficientnet > 0:
